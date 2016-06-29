@@ -61,9 +61,15 @@
                   <text value="No file chosen."/>
                 </properties>
               </component>
+              <hspacer id="53697">
+                <constraints>
+                  <grid row="1" column="1" row-span="1" col-span="1" vsize-policy="1" hsize-policy="6" anchor="0" fill="1" indent="0" use-parent-layout="false"/>
+                  <gridbag weightx="0.0" weighty="0.0"/>
+                </constraints>
+              </hspacer>
             </children>
           </grid>
-          <grid id="dd069" layout-manager="BorderLayout" hgap="0" vgap="0">
+          <grid id="dd069" layout-manager="BorderLayout" hgap="10" vgap="5">
             <constraints border-constraint="South"/>
             <properties/>
             <border type="none"/>
@@ -71,7 +77,7 @@
               <component id="3ea0" class="javax.swing.JButton" binding="signButton" default-binding="true">
                 <constraints border-constraint="Center"/>
                 <properties>
-                  <text value="Sign!"/>
+                  <text value="Encrypt my data!"/>
                 </properties>
               </component>
               <component id="db0e8" class="javax.swing.JButton" binding="resetButton" default-binding="true">
@@ -112,13 +118,13 @@
               </scrollpane>
               <vspacer id="23119">
                 <constraints>
-                  <grid row="4" column="0" row-span="1" col-span="1" vsize-policy="6" hsize-policy="1" anchor="0" fill="2" indent="0" use-parent-layout="false"/>
+                  <grid row="7" column="0" row-span="1" col-span="1" vsize-policy="6" hsize-policy="1" anchor="0" fill="2" indent="0" use-parent-layout="false"/>
                   <gridbag weightx="0.0" weighty="0.0"/>
                 </constraints>
               </vspacer>
               <scrollpane id="96048">
                 <constraints>
-                  <grid row="1" column="2" row-span="1" col-span="1" vsize-policy="7" hsize-policy="7" anchor="0" fill="3" indent="0" use-parent-layout="false"/>
+                  <grid row="1" column="2" row-span="1" col-span="2" vsize-policy="7" hsize-policy="7" anchor="0" fill="3" indent="0" use-parent-layout="false"/>
                   <gridbag weightx="10.0" weighty="5.0"/>
                 </constraints>
                 <properties/>
@@ -139,13 +145,13 @@
                   <text value="Your PKCS7 contents:"/>
                 </properties>
               </component>
-              <component id="a72db" class="javax.swing.JLabel">
+              <component id="a72db" class="javax.swing.JLabel" binding="resultStatus">
                 <constraints>
-                  <grid row="0" column="2" row-span="1" col-span="1" vsize-policy="0" hsize-policy="0" anchor="8" fill="0" indent="0" use-parent-layout="false"/>
+                  <grid row="0" column="2" row-span="1" col-span="2" vsize-policy="0" hsize-policy="0" anchor="8" fill="0" indent="0" use-parent-layout="false"/>
                   <gridbag weightx="0.0" weighty="0.0"/>
                 </constraints>
                 <properties>
-                  <text value="Your signed PKCS7:"/>
+                  <text value="Your encrypted PKCS7:"/>
                 </properties>
               </component>
               <hspacer id="16a84">
@@ -154,15 +160,6 @@
                   <gridbag weightx="0.0" weighty="0.0"/>
                 </constraints>
               </hspacer>
-              <component id="55491" class="javax.swing.JButton" binding="importPKCS7Button" default-binding="true">
-                <constraints>
-                  <grid row="3" column="0" row-span="1" col-span="1" vsize-policy="0" hsize-policy="3" anchor="0" fill="1" indent="0" use-parent-layout="false"/>
-                  <gridbag weightx="0.0" weighty="0.0"/>
-                </constraints>
-                <properties>
-                  <text value="or Import from a file."/>
-                </properties>
-              </component>
               <component id="795f6" class="javax.swing.JLabel" binding="pkcs7Path" custom-create="true">
                 <constraints>
                   <grid row="2" column="0" row-span="1" col-span="1" vsize-policy="0" hsize-policy="0" anchor="8" fill="0" indent="0" use-parent-layout="false"/>
@@ -170,6 +167,70 @@
                 </constraints>
                 <properties>
                   <text value="No PKCS7 file chosen."/>
+                </properties>
+              </component>
+              <component id="3f4f4" class="javax.swing.JLabel" binding="modulusCert">
+                <constraints>
+                  <grid row="3" column="2" row-span="1" col-span="2" vsize-policy="0" hsize-policy="0" anchor="8" fill="0" indent="0" use-parent-layout="false"/>
+                  <gridbag weightx="0.0" weighty="0.0"/>
+                </constraints>
+                <properties>
+                  <text value="Cert modulus: Please choose a file."/>
+                </properties>
+              </component>
+              <component id="8d81d" class="javax.swing.JLabel" binding="modulusPKey">
+                <constraints>
+                  <grid row="2" column="2" row-span="1" col-span="2" vsize-policy="0" hsize-policy="0" anchor="8" fill="0" indent="0" use-parent-layout="false"/>
+                  <gridbag weightx="0.0" weighty="0.0"/>
+                </constraints>
+                <properties>
+                  <text value="PKey modulus: Please choose a file."/>
+                </properties>
+              </component>
+              <component id="3816c" class="javax.swing.JLabel" binding="modulusCompare">
+                <constraints>
+                  <grid row="4" column="2" row-span="1" col-span="2" vsize-policy="0" hsize-policy="0" anchor="8" fill="0" indent="0" use-parent-layout="false"/>
+                  <gridbag weightx="0.0" weighty="0.0"/>
+                </constraints>
+                <properties>
+                  <text value=""/>
+                </properties>
+              </component>
+              <component id="55491" class="javax.swing.JButton" binding="importPKCS7Button" default-binding="true">
+                <constraints>
+                  <grid row="5" column="0" row-span="1" col-span="1" vsize-policy="0" hsize-policy="3" anchor="0" fill="1" indent="0" use-parent-layout="false"/>
+                  <gridbag weightx="0.0" weighty="0.0"/>
+                </constraints>
+                <properties>
+                  <text value="or Import from a file."/>
+                </properties>
+              </component>
+              <component id="7c4c1" class="javax.swing.JCheckBox" binding="encryptAfterSigningCheckBox" default-binding="true">
+                <constraints>
+                  <grid row="5" column="2" row-span="1" col-span="1" vsize-policy="0" hsize-policy="3" anchor="8" fill="0" indent="0" use-parent-layout="false"/>
+                  <gridbag weightx="0.0" weighty="0.0"/>
+                </constraints>
+                <properties>
+                  <selected value="true"/>
+                  <text value="Encrypt after signing"/>
+                </properties>
+              </component>
+              <component id="2ec77" class="javax.swing.JButton" binding="copyResultsToClipboardButton" default-binding="true">
+                <constraints>
+                  <grid row="6" column="3" row-span="1" col-span="1" vsize-policy="0" hsize-policy="3" anchor="0" fill="1" indent="0" use-parent-layout="false"/>
+                  <gridbag weightx="0.0" weighty="0.0"/>
+                </constraints>
+                <properties>
+                  <text value="Copy results to clipboard"/>
+                </properties>
+              </component>
+              <component id="f8fb0" class="javax.swing.JButton" binding="selectAllButton" default-binding="true">
+                <constraints>
+                  <grid row="6" column="2" row-span="1" col-span="1" vsize-policy="0" hsize-policy="3" anchor="0" fill="1" indent="0" use-parent-layout="false"/>
+                  <gridbag weightx="0.0" weighty="0.0"/>
+                </constraints>
+                <properties>
+                  <text value="Select all"/>
                 </properties>
               </component>
             </children>

@@ -30,8 +30,10 @@ public class PKCS7 implements Signable, Dumpable {
     private AttributeSet signedAttributes;
     private boolean isEnveloped;
     private boolean isSigned;
+    private boolean isEncrypted;
     private byte[] envelopedData;
     private byte[] signedData;
+    private byte[] encryptedData;
     private Certificate certificate;
     private Certificate certSigner;
     private PrivateKey privateKeySigner;
@@ -131,7 +133,6 @@ public class PKCS7 implements Signable, Dumpable {
             throw new PKCS7Exception("Couldn't write the data to a temp file.");
         }
         addTempFile(tempRawData);
-
         //Create a temp file that will contain the signer
         File tempSignerBlob = new File("tmp/temp-"+getFilename(false)+".signer");
         if (!FileWriter.write(this.certSigner.getBlob(), tempSignerBlob.getAbsolutePath())) {
@@ -156,20 +157,71 @@ public class PKCS7 implements Signable, Dumpable {
         BashReader bashReader = BashReader.read(args);
         if (bashReader == null || bashReader.getExitValue() != 0) {
             if (bashReader == null) {
-                throw new PKCS7Exception("The command \" \" + BashReader.toSingleString(args) + \"\" failed (null).");
+                throw new PKCS7Exception("The command \"" + BashReader.toSingleString(args) + "\" failed (null).");
             }
-            throw new PKCS7Exception("The command \" " + BashReader.toSingleString(args) + "\" failed - " + bashReader.getOutput() + " ("+bashReader.getExitValue()+")");
+            throw new PKCS7Exception("The command \"" + BashReader.toSingleString(args) + "\" failed - " + bashReader.getOutput() + " ("+bashReader.getExitValue()+")");
         }
 
         // Now we have a file with signed data.
         this.signedData = BashReader.toSingleString(FileReader.getLines(outFile)).getBytes();
+        this.isSigned = true;
 
         if (cleanTempFiles()) {
-            Logger.debug("Temp files all cleaned up.");
+            Logger.debug("PKCS7", "PKCS7.sign(): Temp files all cleaned up.");
         } else {
-            Logger.debug("Temp files NOT cleaned up (all or some).");
+            Logger.debug("PKCS7", "PKCS7.sign(): Temp files NOT cleaned up (all or some).");
         }
         return isSigned;
+    }
+
+    public boolean encrypt() throws CertificateException {
+        if (!isSigned || signedData == null) {
+            throw new CertificateException("Please sign the PKCS7 first with a signer and its private key.");
+        }
+
+        // As the first statement of this methods implies it, the encryption process come right after the signing process
+        // This means the encrypt should be very similar to the signing process, and thus easier to understand
+
+        // This file should exist, so get its contents or dump the signed data if the file is not there.
+        File tempSigned = new File("tmp/temp-"+getFilename(false)+".signed");
+        File tempEnc = new File("tmp/temp-"+getFilename(false)+".encrypted");
+        if (!tempSigned.exists()) {
+            FileWriter.write(getSignedDataAsString(), tempSigned.getPath());
+        }
+        addTempFile(tempSigned);
+
+        //Create a temp file that will contain the signer
+        File tempSignerBlob = new File("tmp/temp-"+getFilename(false)+".signer");
+        if (!FileWriter.write(this.certSigner.getBlob(), tempSignerBlob.getAbsolutePath())) {
+            throw new PKCS7Exception("Couldn't write the signer's blob of data to the file.");
+        }
+        addTempFile(tempSignerBlob);
+
+        String[] args = {"openssl", "cms", "-encrypt", "-in", tempSigned.getPath(), "-out", tempEnc.getPath(), tempSignerBlob.getPath()};
+
+        BashReader bashReader = BashReader.read(args);
+        if (bashReader == null || bashReader.getExitValue() != 0) {
+            if (bashReader == null) {
+                throw new PKCS7Exception("The command \"" + BashReader.toSingleString(args) + "\" failed (null).");
+            }
+            throw new PKCS7Exception("The command \"" + BashReader.toSingleString(args) + "\" failed - " + bashReader.getOutput() + " ("+bashReader.getExitValue()+")");
+        }
+
+        // Now we have a file with encrypted data!
+        this.encryptedData = BashReader.toSingleString(FileReader.getLines(tempEnc)).getBytes();
+        this.isEncrypted = true;
+
+        if (cleanTempFiles()) {
+            Logger.debug("PKCS7", "PKCS7.encrypt(): Temp files all cleaned up.");
+        } else {
+            Logger.debug("PKCS7", "PKCS7.encrypt(): Temp files NOT cleaned up (all or some).");
+        }
+
+        return isEncrypted;
+    }
+
+    public boolean signAndEncrypt() throws CertificateException {
+        return sign() && encrypt();
     }
 
     @Override
@@ -191,6 +243,13 @@ public class PKCS7 implements Signable, Dumpable {
             return null;
         }
         return new String(signedData);
+    }
+
+    public String getEncryptedDataAsString() {
+        if (encryptedData == null) {
+            return null;
+        }
+        return new String(encryptedData);
     }
 
     public FileType getType() {
@@ -222,6 +281,7 @@ public class PKCS7 implements Signable, Dumpable {
                 ok = false;
             }
         }
+        tempFiles = null;
         return ok;
     }
 
@@ -273,5 +333,4 @@ public class PKCS7 implements Signable, Dumpable {
             e.printStackTrace();
         }
     }
-
 }

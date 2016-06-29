@@ -31,7 +31,6 @@ public final class FileWriter {
                     file.createNewFile();
                 }
                 FileOutputStream fos = new FileOutputStream(file, append);
-                System.out.println("Writing "+line);
                 fos.write((line+(new_line ? "\n" : "")).getBytes());
                 fos.close();
                 return true;

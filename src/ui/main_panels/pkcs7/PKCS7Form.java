@@ -7,6 +7,7 @@ import tools.FileReader;
 import ui.HostPanel;
 import x509.Certificate;
 import x509.CertificateException;
+import x509.Modulus;
 import x509.PrivateKey;
 
 import javax.swing.*;
@@ -14,6 +15,9 @@ import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.File;
+
+import java.awt.datatransfer.*;
+import java.awt.Toolkit;
 
 /**
  * Created by aakintol on 29/06/16.
@@ -31,7 +35,16 @@ public class PKCS7Form implements HostPanel {
     private JLabel pkcs7Path;
     private JButton importPKCS7Button;
     private JButton saveResultsButton;
+    private JLabel modulusPKey;
+    private JLabel modulusCert;
+    private JLabel modulusCompare;
+    private JCheckBox encryptAfterSigningCheckBox;
+    private JLabel resultStatus;
+    private JButton copyResultsToClipboardButton;
+    private JButton selectAllButton;
     private JFrame parent;
+
+    private String certModulus, keyModulus;
 
     private File certFile, keyFile, pkcs7File;
     private static PKCS7Form form;
@@ -45,6 +58,22 @@ public class PKCS7Form implements HostPanel {
                 if (n == JFileChooser.APPROVE_OPTION) {
                     certFile = fileChooser.getSelectedFile();
                     certPath.setText("../"+certFile.getParentFile().getName()+"/"+certFile.getName());
+                    try {
+                        certModulus = Modulus.get(certFile, true);
+                        modulusCert.setText("Cert modulus: "+ (certModulus == null ? "Invalid certificate!" : certModulus));
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        modulusCert.setText("Cert modulus: Invalid file!");
+                    } finally {
+                        if (certModulus != null && keyModulus != null) {
+                            modulusCompare.setText(keyModulus.equals(certModulus) ? "They match!" : "They don't match");
+                        }
+                    }
+                }
+                if (certFile != null && certModulus != null) {
+                    importCertButton.setText("You're good to go!");
+                } else {
+                    importCertButton.setText("Click here to import your cert. signer");
                 }
             }
         });
@@ -56,6 +85,22 @@ public class PKCS7Form implements HostPanel {
                 if (n == JFileChooser.APPROVE_OPTION) {
                     keyFile = fileChooser.getSelectedFile();
                     keyPath.setText("../"+keyFile.getParentFile().getName()+"/"+keyFile.getName());
+                    try {
+                        keyModulus = Modulus.get(keyFile, false);
+                        modulusPKey.setText("PKey modulus: "+ (keyModulus == null ? "Invalid private key!" : keyModulus));
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        modulusPKey.setText("PKey modulus: Invalid file!");
+                    } finally {
+                        if (certModulus != null && keyModulus != null) {
+                            modulusCompare.setText(keyModulus.equals(certModulus) ? "They match!" : "They don't match");
+                        }
+                    }
+                }
+                if (keyFile != null && keyModulus != null) {
+                    importKeyButton.setText("You're good to go!");
+                } else {
+                    importKeyButton.setText("Click here to import your signer's key");
                 }
             }
         });
@@ -74,10 +119,11 @@ public class PKCS7Form implements HostPanel {
 
         signButton.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent actionEvent) {
+                copyResultsToClipboardButton.setText("Copy results to clipboard");
                 String errorMessage = "<html>You are missing the following:<br><ul>";
                 boolean hasErrors = false;
-                if (pkcs7File == null) {
-                    errorMessage += "<li>A PKCS7 file</li>";
+                if (pkcs7File == null && textArea1.getText().trim().isEmpty()) {
+                    errorMessage += "<li>A PKCS7 file or its contents (place them on the left pane)</li>";
                 }
                 if (certFile == null) {
                     errorMessage += "<li>Your certificate signer file</li>";
@@ -85,13 +131,18 @@ public class PKCS7Form implements HostPanel {
                 if (keyFile == null) {
                     errorMessage += "<li>Your signer's private key file</li>";
                 }
-                hasErrors = pkcs7File == null || certFile == null || keyFile == null;
+                hasErrors = (pkcs7File == null && textArea1.getText().trim().isEmpty()) || certFile == null || keyFile == null;
                 errorMessage += "</ul></html>";
                 if (hasErrors) {
                     JOptionPane.showMessageDialog(parent, errorMessage, "Error while signing the PKCS7 message.", JOptionPane.ERROR_MESSAGE);
                     return;
                 }
-                PKCS7 pkcs7 = new PKCS7(BashReader.toSingleString(FileReader.getLines(pkcs7File)), false);
+                PKCS7 pkcs7;
+                if (pkcs7File != null) {
+                    pkcs7 = new PKCS7(BashReader.toSingleString(FileReader.getLines(pkcs7File)), false);
+                } else {
+                    pkcs7 = new PKCS7(textArea1.getText().trim(), false);
+                }
                 Certificate signer;
                 try {
                     signer = Certificate.loadCertificateFromFile(certFile);
@@ -105,17 +156,50 @@ public class PKCS7Form implements HostPanel {
                     PrivateKey privateKey = PrivateKey.loadPrivateKey(keyFile);
                     pkcs7.setPrivateKeySigner(privateKey);
                     pkcs7.sign();
+                    if (encryptAfterSigningCheckBox.isSelected()) {
+                        pkcs7.encrypt();
+                    }
                 } catch (PKCS7Exception e) {
                     e.printStackTrace();
                     JOptionPane.showMessageDialog(parent, "The signature has failed: "+e, "Error while signing the PKCS7 message.", JOptionPane.ERROR_MESSAGE);
                     return;
                 } catch (CertificateException e) {
                     e.printStackTrace();
-                    JOptionPane.showMessageDialog(parent, "The your private key is invalid.", "Error while signing the PKCS7 message.", JOptionPane.ERROR_MESSAGE);
+                    JOptionPane.showMessageDialog(parent, "The private key is invalid.", "Error while signing the PKCS7 message.", JOptionPane.ERROR_MESSAGE);
                     return;
                 }
-                JOptionPane.showMessageDialog(parent, "The sign was complete! You can view the results on the right pane.");
-                textArea2.setText(pkcs7.getSignedDataAsString());
+                if (encryptAfterSigningCheckBox.isSelected()) {
+                    JOptionPane.showMessageDialog(parent, "The signing is complete! You can view the results on the right pane.");
+                    textArea2.setText(pkcs7.getEncryptedDataAsString());
+                } else {
+                    JOptionPane.showMessageDialog(parent, "The encryption is complete! You can view the results on the right pane.");
+                    textArea2.setText(pkcs7.getSignedDataAsString());
+                }
+                textArea2.setCaretPosition(0);
+            }
+        });
+
+        encryptAfterSigningCheckBox.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent actionEvent) {
+                boolean selected = encryptAfterSigningCheckBox.isSelected();
+                resultStatus.setText(selected ? "Your encrypted PKCS7:" : "Your signed PKCS7:");
+                signButton.setText(selected ? "Encrypt my data!" : "Sign my data!");
+            }
+        });
+
+        selectAllButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent actionEvent) {
+                textArea2.selectAll();
+            }
+        });
+
+        copyResultsToClipboardButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent actionEvent) {
+                String string = textArea2.getText();
+                StringSelection stringSelection = new StringSelection(string);
+                Clipboard clpbrd = Toolkit.getDefaultToolkit().getSystemClipboard();
+                clpbrd.setContents(stringSelection, null);
+                copyResultsToClipboardButton.setText("Copied!");
             }
         });
     }

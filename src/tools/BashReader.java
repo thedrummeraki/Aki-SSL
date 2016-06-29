@@ -1,5 +1,7 @@
 package tools;
 
+import org.omg.PortableInterceptor.INACTIVE;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -107,8 +109,16 @@ public final class BashReader {
     }
 
     public static ArrayList<String> executeAndThrow(String command, boolean log, boolean saveToLog) throws IOException {
+        command = command.trim();
         Runtime runtime = Runtime.getRuntime();
         Process process = runtime.exec(command);
+        int code;
+        try {
+            code = process.waitFor();
+        } catch (InterruptedException e) {
+            code = Integer.MIN_VALUE;
+            e.printStackTrace();
+        }
         InputStream is = process.getInputStream();
         InputStreamReader isr = new InputStreamReader(is);
         BufferedReader br = new BufferedReader(isr);
@@ -123,6 +133,7 @@ public final class BashReader {
                 Logger.info("", line, saveToLog);
             output.add(line);
         }
+        Logger.info("BashReader", "Command executed: "+command+ (output.isEmpty() ? ". No output." : ".")+" Exited with code ("+code+").");
         return output;
     }
 
