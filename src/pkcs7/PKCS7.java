@@ -56,6 +56,18 @@ public class PKCS7 implements Signable, Dumpable {
         this.certificate = Certificate.loadCertificateFromBuffer(buff);
     }
 
+    public void setCertificate(Certificate certificate) {
+        this.certificate = certificate;
+    }
+
+    public void setCertSigner(Certificate signer) {
+        this.certSigner = signer;
+    }
+
+    public void setPrivateKeySigner(PrivateKey privateKeySigner) {
+        this.privateKeySigner = privateKeySigner;
+    }
+
     public void setFilename(String filename) {
         this.filename = filename;
     }
@@ -129,7 +141,8 @@ public class PKCS7 implements Signable, Dumpable {
 
         //Create a temp file that will contain the private key
         File tempKey = new File("tmp/temp-"+getFilename(false)+".key");
-        if (!FileWriter.write(this.privateKeySigner.dumpPEM(), tempKey.getAbsolutePath())) {
+        Logger.debug("PKCS7", "Trying to write to the file.");
+        if (!FileWriter.write(this.privateKeySigner.dumpPEM(this.certSigner.getSubject()), tempKey.getAbsolutePath())) {
             throw new PKCS7Exception("Couldn't write the signer's private key to the file.");
         }
         addTempFile(tempKey);
@@ -137,15 +150,15 @@ public class PKCS7 implements Signable, Dumpable {
         String outFile = "temp-"+getFilename(false)+".signed";
 
         //How would we sign the contents?
-        String[] args = {"openssl", "cms", "sign", "-in", tempRawData.getAbsolutePath(), "-out", outFile,
+        String[] args = {"openssl", "cms", "-sign", "-in", tempRawData.getAbsolutePath(), "-out", outFile,
                     "-signer", tempSignerBlob.getAbsolutePath(), "-inkey", tempKey.getAbsolutePath()};
 
         BashReader bashReader = BashReader.read(args);
         if (bashReader == null || bashReader.getExitValue() != 0) {
             if (bashReader == null) {
-                throw new PKCS7Exception("The command failed (null).");
+                throw new PKCS7Exception("The command \" \" + BashReader.toSingleString(args) + \"\" failed (null).");
             }
-            throw new PKCS7Exception("The command failed ("+bashReader.getExitValue()+").");
+            throw new PKCS7Exception("The command \" " + BashReader.toSingleString(args) + "\" failed - " + bashReader.getOutput() + " ("+bashReader.getExitValue()+")");
         }
 
         // Now we have a file with signed data.

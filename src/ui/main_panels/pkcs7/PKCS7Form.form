@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<form xmlns="http://www.intellij.com/uidesigner/form/" version="1" bind-to-class="ui.main_panels.pkcs7.PKCS7Form">
+  <grid id="27dc6" binding="panel1" default-binding="true" layout-manager="BorderLayout" hgap="0" vgap="0">
+    <constraints>
+      <xy x="20" y="20" width="814" height="573"/>
+    </constraints>
+    <properties/>
+    <border type="none"/>
+    <children>
+      <grid id="8d691" layout-manager="BorderLayout" hgap="0" vgap="0">
+        <constraints border-constraint="Center"/>
+        <properties/>
+        <border type="empty">
+          <size top="5" left="5" bottom="5" right="5"/>
+        </border>
+        <children>
+          <grid id="cf85c" layout-manager="GridBagLayout">
+            <constraints border-constraint="North"/>
+            <properties/>
+            <border type="none"/>
+            <children>
+              <vspacer id="b1292">
+                <constraints>
+                  <grid row="2" column="0" row-span="1" col-span="1" vsize-policy="6" hsize-policy="1" anchor="0" fill="2" indent="0" use-parent-layout="false"/>
+                  <gridbag weightx="0.0" weighty="0.0"/>
+                </constraints>
+              </vspacer>
+              <component id="63908" class="javax.swing.JButton" binding="importCertButton">
+                <constraints>
+                  <grid row="1" column="0" row-span="1" col-span="1" vsize-policy="0" hsize-policy="3" anchor="0" fill="1" indent="0" use-parent-layout="false"/>
+                  <gridbag weightx="0.0" weighty="0.0"/>
+                </constraints>
+                <properties>
+                  <text value="Click here to import your cert. signer"/>
+                </properties>
+              </component>
+              <component id="bf3e2" class="javax.swing.JButton" binding="importKeyButton">
+                <constraints>
+                  <grid row="1" column="2" row-span="1" col-span="1" vsize-policy="0" hsize-policy="3" anchor="0" fill="1" indent="0" use-parent-layout="false"/>
+                  <gridbag weightx="0.0" weighty="0.0"/>
+                </constraints>
+                <properties>
+                  <text value="Click here to import your signer's key"/>
+                </properties>
+              </component>
+              <component id="7b545" class="javax.swing.JLabel" binding="certPath" custom-create="true">
+                <constraints>
+                  <grid row="0" column="0" row-span="1" col-span="1" vsize-policy="0" hsize-policy="0" anchor="8" fill="0" indent="0" use-parent-layout="false"/>
+                  <gridbag weightx="0.0" weighty="0.0"/>
+                </constraints>
+                <properties>
+                  <text value="No file chosen."/>
+                </properties>
+              </component>
+              <component id="15d21" class="javax.swing.JLabel" binding="keyPath" custom-create="true">
+                <constraints>
+                  <grid row="0" column="2" row-span="1" col-span="1" vsize-policy="0" hsize-policy="0" anchor="8" fill="0" indent="0" use-parent-layout="false"/>
+                  <gridbag weightx="0.0" weighty="0.0"/>
+                </constraints>
+                <properties>
+                  <text value="No file chosen."/>
+                </properties>
+              </component>
+            </children>
+          </grid>
+          <grid id="dd069" layout-manager="BorderLayout" hgap="0" vgap="0">
+            <constraints border-constraint="South"/>
+            <properties/>
+            <border type="none"/>
+            <children>
+              <component id="3ea0" class="javax.swing.JButton" binding="signButton" default-binding="true">
+                <constraints border-constraint="Center"/>
+                <properties>
+                  <text value="Sign!"/>
+                </properties>
+              </component>
+              <component id="db0e8" class="javax.swing.JButton" binding="resetButton" default-binding="true">
+                <constraints border-constraint="West"/>
+                <properties>
+                  <text value="Reset"/>
+                </properties>
+              </component>
+              <component id="1ae2a" class="javax.swing.JButton" binding="saveResultsButton" default-binding="true">
+                <constraints border-constraint="East"/>
+                <properties>
+                  <enabled value="false"/>
+                  <text value="Save results"/>
+                </properties>
+              </component>
+            </children>
+          </grid>
+          <grid id="5a15f" layout-manager="GridBagLayout">
+            <constraints border-constraint="Center"/>
+            <properties/>
+            <border type="empty">
+              <size top="5" left="5" bottom="5" right="5"/>
+            </border>
+            <children>
+              <scrollpane id="15825">
+                <constraints>
+                  <grid row="1" column="0" row-span="1" col-span="1" vsize-policy="7" hsize-policy="7" anchor="0" fill="3" indent="0" use-parent-layout="false"/>
+                  <gridbag weightx="10.0" weighty="5.0"/>
+                </constraints>
+                <properties/>
+                <border type="none"/>
+                <children>
+                  <component id="9fdff" class="javax.swing.JTextArea" binding="textArea1" default-binding="true">
+                    <constraints/>
+                    <properties/>
+                  </component>
+                </children>
+              </scrollpane>
+              <vspacer id="23119">
+                <constraints>
+                  <grid row="4" column="0" row-span="1" col-span="1" vsize-policy="6" hsize-policy="1" anchor="0" fill="2" indent="0" use-parent-layout="false"/>
+                  <gridbag weightx="0.0" weighty="0.0"/>
+                </constraints>
+              </vspacer>
+              <scrollpane id="96048">
+                <constraints>
+                  <grid row="1" column="2" row-span="1" col-span="1" vsize-policy="7" hsize-policy="7" anchor="0" fill="3" indent="0" use-parent-layout="false"/>
+                  <gridbag weightx="10.0" weighty="5.0"/>
+                </constraints>
+                <properties/>
+                <border type="none"/>
+                <children>
+                  <component id="fec09" class="javax.swing.JTextArea" binding="textArea2" default-binding="true">
+                    <constraints/>
+                    <properties/>
+                  </component>
+                </children>
+              </scrollpane>
+              <component id="3314b" class="javax.swing.JLabel">
+                <constraints>
+                  <grid row="0" column="0" row-span="1" col-span="1" vsize-policy="0" hsize-policy="0" anchor="8" fill="0" indent="0" use-parent-layout="false"/>
+                  <gridbag weightx="0.0" weighty="0.0"/>
+                </constraints>
+                <properties>
+                  <text value="Your PKCS7 contents:"/>
+                </properties>
+              </component>
+              <component id="a72db" class="javax.swing.JLabel">
+                <constraints>
+                  <grid row="0" column="2" row-span="1" col-span="1" vsize-policy="0" hsize-policy="0" anchor="8" fill="0" indent="0" use-parent-layout="false"/>
+                  <gridbag weightx="0.0" weighty="0.0"/>
+                </constraints>
+                <properties>
+                  <text value="Your signed PKCS7:"/>
+                </properties>
+              </component>
+              <hspacer id="16a84">
+                <constraints>
+                  <grid row="0" column="1" row-span="1" col-span="1" vsize-policy="1" hsize-policy="6" anchor="0" fill="1" indent="0" use-parent-layout="false"/>
+                  <gridbag weightx="0.0" weighty="0.0"/>
+                </constraints>
+              </hspacer>
+              <component id="55491" class="javax.swing.JButton" binding="importPKCS7Button" default-binding="true">
+                <constraints>
+                  <grid row="3" column="0" row-span="1" col-span="1" vsize-policy="0" hsize-policy="3" anchor="0" fill="1" indent="0" use-parent-layout="false"/>
+                  <gridbag weightx="0.0" weighty="0.0"/>
+                </constraints>
+                <properties>
+                  <text value="or Import from a file."/>
+                </properties>
+              </component>
+              <component id="795f6" class="javax.swing.JLabel" binding="pkcs7Path" custom-create="true">
+                <constraints>
+                  <grid row="2" column="0" row-span="1" col-span="1" vsize-policy="0" hsize-policy="0" anchor="8" fill="0" indent="0" use-parent-layout="false"/>
+                  <gridbag weightx="0.0" weighty="0.0"/>
+                </constraints>
+                <properties>
+                  <text value="No PKCS7 file chosen."/>
+                </properties>
+              </component>
+            </children>
+          </grid>
+        </children>
+      </grid>
+    </children>
+  </grid>
+</form>

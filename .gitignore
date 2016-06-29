@@ -13,4 +13,6 @@
 hs_err_pid*
 
 # Ignore the IntelliJ .idea folder.
+out/
 /.idea
+*.signed

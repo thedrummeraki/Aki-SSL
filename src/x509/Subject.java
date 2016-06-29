@@ -123,6 +123,19 @@ public class Subject {
         return result;
     }
 
+    public String getPrettyString() {
+        String[] fields = {cn, o, c, l, st, ou};
+        String[] fieldsName = {"C.N.", "Org.", "Ctry.", "Loc.", "St./Prv.", "Org.U."};
+        String result = "";
+        for (int i = 0; i<fields.length; i++) {
+            String field = fields[i];
+            if (field != null) {
+                result += String.format("%s: %s\n", fieldsName[i], field);
+            }
+        }
+        return result;
+    }
+
     public boolean equals(Object o) {
         if (o == null) {
             return false;

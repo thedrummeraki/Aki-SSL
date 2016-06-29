@@ -48,7 +48,27 @@ public final class FileReader {
     public static ArrayList<String> getLines(String... paths) {
         ArrayList<String> ps = new ArrayList<String>();
         for (String path : paths) {
-            ArrayList<String> lines = getLines(path);
+            ArrayList<String> lines;
+            try {
+                 lines = getLines(path);
+            } catch (Exception e) {
+                return ps;
+            }
+            if (lines == null) continue;
+            ps.addAll(lines);
+        }
+        return ps;
+    }
+
+    public static ArrayList<String> getLines(File... files) {
+        ArrayList<String> ps = new ArrayList<String>();
+        for (File path : files) {
+            ArrayList<String> lines;
+            try {
+                 lines = getLines(path.getPath());
+            } catch (Exception e) {
+                return ps;
+            }
             if (lines == null) continue;
             ps.addAll(lines);
         }

@@ -132,6 +132,10 @@ public class Certificate implements Dumpable {
         return blob;
     }
 
+    public static Certificate loadCertificateFromFile(File file) throws CertificateException {
+        return loadCertificateFromFile(file.getPath());
+    }
+
     public static Certificate loadCertificateFromFile(String filename) throws CertificateException {
         if (filename == null) {
             throw new CertificateException("Filename cannot be null.");

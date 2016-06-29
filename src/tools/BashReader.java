@@ -130,7 +130,17 @@ public final class BashReader {
         String s = "";
         if (strings != null) {
             for (String s1 : strings) {
-                s += s + '\n';
+                s += s1 + '\n';
+            }
+        }
+        return s;
+    }
+
+    public static String toSingleString(String... args) {
+        String s = "";
+        if (args != null) {
+            for (String s1 : args) {
+                s += s1 + ' ';
             }
         }
         return s;

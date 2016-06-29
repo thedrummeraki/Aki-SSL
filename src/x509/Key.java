@@ -2,6 +2,8 @@ package x509;
 
 import sun.misc.IOUtils;
 import tools.BashReader;
+import tools.FileReader;
+import tools.Logger;
 
 import java.io.IOException;
 import java.io.RandomAccessFile;
@@ -61,8 +63,15 @@ public abstract class Key implements Dumpable {
 
     @Override
     public byte[] dumpDER() {
-        if (derContents == null) {
+        if (derContents == null && pemContents == null) {
             this.create();
+        } else if (pemContents != null) {
+            try {
+                derContents = toDER(pemContents);
+            } catch (CertificateException e) {
+                Logger.error(e.getClass(), e.getMessage(), true);
+                derContents = new byte[0];
+            }
         }
         return derContents;
     }
@@ -81,11 +90,13 @@ public abstract class Key implements Dumpable {
             throw new CertificateException("The PEM contents cannot be null");
         }
 
+        pemContents = pemContents.trim();
+
         if (pemContents.startsWith("-----BEGIN PRIVATE KEY-----") && pemContents.endsWith("-----END PRIVATE KEY-----") ||
                 pemContents.startsWith("-----BEGIN RSA PRIVATE KEY-----") && pemContents.endsWith("-----END RSA PRIVATE KEY-----")) {
             String tempPEMFile = "tmp/pemtoder.pem";
             String tempDERFile = "tmp/keyout.der";
-            String[] args = {"openssl", "rsa", "-in", tempPEMFile, "-outform", "DER", tempDERFile};
+            String[] args = {"openssl", "rsa", "-in", tempPEMFile, "-out", tempDERFile, "-outform", "DER"};
             try {
                 BashReader.readAndThrow(args);
             } catch (Exception e) {
@@ -105,4 +116,18 @@ public abstract class Key implements Dumpable {
         throw new CertificateException("Header or/and footer missing.");
     }
 
+    public static void main(String[] args) {
+        String contents = BashReader.toSingleString(FileReader.getLines("test-key.key"));
+        try {
+            PrivateKey privateKey = PrivateKey.loadPrivateKey(contents);
+            System.out.println(privateKey.dumpPEM());
+            System.out.println(new String(privateKey.dumpDER()));
+        } catch (CertificateException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void setPemContents(String pemContents) {
+        this.pemContents = pemContents;
+    }
 }

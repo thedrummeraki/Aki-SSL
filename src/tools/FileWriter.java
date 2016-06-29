@@ -23,6 +23,7 @@ public final class FileWriter {
     public static synchronized boolean write(String line, String path, boolean new_line, boolean append) {
         if (line != null && path != null) {
             try {
+                line = line.trim();
                 //If the file does not exist, it will be created in APPEND mode. It gets overriden in PRIVATE mode.
                 File file = new File(path);
                 if (!file.exists()) {
@@ -30,6 +31,7 @@ public final class FileWriter {
                     file.createNewFile();
                 }
                 FileOutputStream fos = new FileOutputStream(file, append);
+                System.out.println("Writing "+line);
                 fos.write((line+(new_line ? "\n" : "")).getBytes());
                 fos.close();
                 return true;
