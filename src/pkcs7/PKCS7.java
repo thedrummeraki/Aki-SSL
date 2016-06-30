@@ -151,7 +151,7 @@ public class PKCS7 implements Signable, Dumpable {
         String outFile = "temp-"+getFilename(false)+".signed";
 
         //How would we sign the contents?
-        String[] args = {"openssl", "cms", "-sign", "-in", tempRawData.getAbsolutePath(), "-out", outFile,
+        String[] args = {"openssl", "cms", "-sign", "-binary", "-in", tempRawData.getAbsolutePath(), "-out", outFile,
                     "-signer", tempSignerBlob.getAbsolutePath(), "-inkey", tempKey.getAbsolutePath()};
 
         BashReader bashReader = BashReader.read(args);
@@ -285,6 +285,44 @@ public class PKCS7 implements Signable, Dumpable {
         return ok;
     }
 
+    public void verify() throws PKCS7Exception {
+        /**
+         * How to verify PKCS7 signed data?
+         *
+         * 1) Generate a RSA test key and certificate if no one is available
+         * openssl req -x509 -nodes -newkey rsa:2048 -keyout keyfile.key -out certificate.cer -subj "my subject"
+         *
+         * 2) Get the file to be signed:
+         * echo "My data to be signed" > data.txt
+         *
+         * 3) Sign the data with the signer and its key
+         * openssl cms -sign -md sha256 -binary -nocerts -noattr -in data.txt -out data.signed -outform DER -inkey keyfile.key -signer certificate.cer
+         *
+         * 4) Locate the signature
+         * openssl asn1parse -inform der -in data.signed
+         *
+         * 5) Extract binary RSA encrypted hash
+         * dd if=data.signed of=signed-sha256.bin bs=1 skip=$[ 171 + 3 ] count=128
+         *
+         * 6) Verify the extracted data
+         * hexdump -C signed-sha256.bin
+         *
+         * 7) Extract the public key from the certificate
+         * openssl x509 -inform PEM -in certificate.cer -noout -pubkey > pubkey.pem
+         *
+         * 8) Verify the signature
+         * openssl rsautl -verify -pubin -inkey pubkey.pem < signed-sha256.bin > verified.bin
+         *
+         * 9) Run hexdump -C verified.bin
+         * hexdump -C verified.bin
+         *
+         * 10) Do another asn1parse to compare last command's hex dump to this one's
+         * openssl asn1parse -inform DER -in verified.bin
+         *
+         * (taken from: http://qistoph.blogspot.ca/2012/01/manual-verify-pkcs7-signed-data-with.html)
+         * */
+    }
+
     public static void main(String[] args) {
         String rawData = "-----BEGIN PKCS7-----\n" +
                 "MIIGugYJKoZIhvcNAQcCoIIGqzCCBqcCAQExDjAMBggqhkiG9w0CBQUAMIIDIQYJ\n" +
@@ -327,7 +365,7 @@ public class PKCS7 implements Signable, Dumpable {
         PKCS7 pkcs7 = new PKCS7(rawData, false);
         pkcs7.createFilename();
         try {
-            pkcs7.sign(Certificate.loadCertificateFromFile("/home/aakintol/Desktop/tester-cert.pem"));
+            pkcs7.sign(Certificate.loadCertificateFromFile("~/Desktop/server.pem"));
             System.out.print(pkcs7.getSignedDataAsString());
         } catch (CertificateException e) {
             e.printStackTrace();
