@@ -32,6 +32,10 @@ public final class BashReader {
         return output;
     }
 
+    public String getCommand() {
+        return command;
+    }
+
     public int getExitValue() {
         return exitValue;
     }

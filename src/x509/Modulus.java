@@ -54,12 +54,24 @@ public final class Modulus {
         String[] args = {"openssl", "rsa", "-noout", "-modulus", "-in", temp.getPath()};
         BashReader br = BashReader.read(args);
         if (br == null) {
-            Logger.error("Modulus", String.format("The command \"%s\" from Modulus.getFromKey(String) was not valid.", BashReader.toSingleString(args)));
-            return null;
+            args = new String[]{"openssl", "dsa", "-noout", "-modulus", "-in", temp.getPath()};
+            br = BashReader.read(args);
+            if (br == null) {
+                Logger.error("Modulus", String.format("The command \"%s\" from Modulus.getFromKey(String) was not valid.", BashReader.toSingleString(args)));
+                return null;
+            }
         }
         if (br.getExitValue() != 0) {
-            Logger.error("Modulus", String.format("The command \"%s\" from Modulus.getFromKey(String) exited with status of %s.", BashReader.toSingleString(args), br.getExitValue()));
-            return null;
+            args = new String[]{"openssl", "dsa", "-noout", "-modulus", "-in", temp.getPath()};
+            br = BashReader.read(args);
+            if (br == null) {
+                Logger.error("Modulus", String.format("The command \"%s\" from Modulus.getFromKey(String) was not valid.", BashReader.toSingleString(args)));
+                return null;
+            }
+            if (br.getExitValue() != 0) {
+                Logger.error("Modulus", String.format("The command \"%s\" from Modulus.getFromKey(String) exited with status of %s.", BashReader.toSingleString(args), br.getExitValue()));
+                return null;
+            }
         }
         temp.delete();
         String output = br.getOutput();

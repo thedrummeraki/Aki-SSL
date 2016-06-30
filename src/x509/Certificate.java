@@ -97,17 +97,21 @@ public class Certificate implements Dumpable {
             }
             String sub = br.getOutput();
             sub = sub.substring(9, sub.length()-1).trim();
-            br = BashReader.read("openssl", "x509", "-inform", "PEM", "-in", getFilename(), "-noout", "-subject");
+//            Logger.debug("PKCS7", "Subject: "+sub);
+            br = BashReader.read("openssl", "x509", "-inform", "PEM", "-in", getFilename(), "-noout", "-issuer");
             if (br == null) {
                 return false;
             }
             String iss = br.getOutput();
             iss = iss.substring(8, iss.length()-1).trim();
+//            Logger.debug("PKCS7", "Issuer: "+iss);
             return sub.length() == iss.length() && sub.equals(iss);
         }
         if (issuer != null && subject != null) {
+            Logger.debug("PKCS7", "Subject: "+subject.getRawString()+"\nIssuer: "+issuer.getRawString());
             return issuer.equals(subject);
         }
+        Logger.warn("PKCS7", "No issuer or/and subject provided.");
         return false;
     }
 

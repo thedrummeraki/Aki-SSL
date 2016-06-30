@@ -1,11 +1,12 @@
 package pkcs7;
 
 import x509.CertificateException;
+import x509.SignatureException;
 
 /**
  * Created by aakintol on 28/06/16.
  */
-public class PKCS7Exception extends CertificateException {
+public class PKCS7Exception extends SignatureException {
 
     public PKCS7Exception() {
         super();

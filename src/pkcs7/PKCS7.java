@@ -11,32 +11,19 @@ import x509.*;
  * Created by aakintol on 28/06/16.
  */
 
+import javax.swing.*;
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 
 import static x509.FileType.PEM;
 
-public class PKCS7 implements Signable, Dumpable {
+public class PKCS7 extends Signable {
 
-    private static final String[] DIGITS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"};
-    private static final String[] HEX_LETTERS = {"A", "B", "C", "D", "E", "F"};
-    private static final String[] LETTERS = {"A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"};
-    private FileType type;
-
-    private ArrayList<File> tempFiles;
-
-    private String filename;
-    private String contents;
-    private AttributeSet signedAttributes;
     private boolean isEnveloped;
-    private boolean isSigned;
     private boolean isEncrypted;
-    private byte[] envelopedData;
-    private byte[] signedData;
     private byte[] encryptedData;
     private Certificate certificate;
-    private Certificate certSigner;
-    private PrivateKey privateKeySigner;
 
 
     public PKCS7(String rawData, boolean addHeaders) {
@@ -46,12 +33,8 @@ public class PKCS7 implements Signable, Dumpable {
             header = "-----BEGIN PKCS7-----";
             footer = "-----END PKCS7-----";
         }
-        this.contents = String.format("%s%s%s", header, rawData, footer);
-        this.type = PEM;
-    }
-
-    public void setSigner(Certificate certSigner) {
-        this.certSigner = certSigner;
+        this.setContents(String.format("%s%s%s", header, rawData, footer));
+        this.setType(PEM);
     }
 
     public void setCertificate(String buff) throws CertificateException {
@@ -62,120 +45,32 @@ public class PKCS7 implements Signable, Dumpable {
         this.certificate = certificate;
     }
 
-    public void setCertSigner(Certificate signer) {
-        this.certSigner = signer;
-    }
-
-    public void setPrivateKeySigner(PrivateKey privateKeySigner) {
-        this.privateKeySigner = privateKeySigner;
-    }
-
-    public void setFilename(String filename) {
-        this.filename = filename;
-    }
-
-    public void createFilename(int length, boolean hex) {
-        this.filename = FileWriter.dumpFilename(length, hex, getFileExtension());
-    }
-
-    public String getFileExtension() {
-        switch (type.name()) {
-            case "PEM": return ".pem";
-            case "BER": return ".ber";
-            case "CER": return ".cer";
-            case "DER": return ".der";
-            case "TEXT": return ".txt";
-            default: return ".pem";
+    public String getEncryptedDataAsString() {
+        if (encryptedData == null) {
+            return null;
         }
+        return new String(encryptedData);
     }
 
-    public String getFilename() {
-        return getFilename(true);
+    public boolean isEnveloped() {
+        return isEnveloped;
     }
 
-    public String getFilename(boolean fullFilename) {
-        return fullFilename ? filename + getFileExtension() : filename;
-    }
-
-    public void createFilename() {
-        createFilename(20, true);
+    public boolean isEncrypted() {
+        return isEncrypted;
     }
 
     public boolean sign(Certificate signer) throws PKCS7Exception {
-        this.certSigner = signer;
-        return this.sign();
-    }
-
-    @Override
-    public boolean sign() throws PKCS7Exception {
-        if (this.certSigner == null) {
-            throw new PKCS7Exception("You need to specify a signer!");
+        this.setCertSigner(signer);
+        try {
+            return this.sign(signer);
+        } catch (SignatureException e) {
+            throw new PKCS7Exception(e);
         }
-        if (this.privateKeySigner == null) {
-            if (this.certSigner.isSelfSigned()) {
-                this.privateKeySigner = this.certSigner.getPrivateKey();
-            }
-            if (this.privateKeySigner == null) {
-                throw new PKCS7Exception("You need to specify a private key!");
-            }
-        }
-        if (this.certSigner.getBlob() == null) {
-            throw new PKCS7Exception("It appears your certificate signer is empty");
-        }
-        if (isSigned && signedData != null) {
-            // no need to sign it twice
-            return true;
-        }
-        // Signs the raw data of PKCS7
-        // Create a temp file that will hold the raw data.
-        File tempRawData = new File("tmp/temp-"+getFilename());
-        if (!FileWriter.write(this.contents, tempRawData.getAbsolutePath())) {
-            throw new PKCS7Exception("Couldn't write the data to a temp file.");
-        }
-        addTempFile(tempRawData);
-        //Create a temp file that will contain the signer
-        File tempSignerBlob = new File("tmp/temp-"+getFilename(false)+".signer");
-        if (!FileWriter.write(this.certSigner.getBlob(), tempSignerBlob.getAbsolutePath())) {
-            throw new PKCS7Exception("Couldn't write the signer's blob of data to the file.");
-        }
-        addTempFile(tempSignerBlob);
-
-        //Create a temp file that will contain the private key
-        File tempKey = new File("tmp/temp-"+getFilename(false)+".key");
-        Logger.debug("PKCS7", "Trying to write to the file.");
-        if (!FileWriter.write(this.privateKeySigner.dumpPEM(this.certSigner.getSubject()), tempKey.getAbsolutePath())) {
-            throw new PKCS7Exception("Couldn't write the signer's private key to the file.");
-        }
-        addTempFile(tempKey);
-
-        String outFile = "temp-"+getFilename(false)+".signed";
-
-        //How would we sign the contents?
-        String[] args = {"openssl", "cms", "-sign", "-binary", "-in", tempRawData.getAbsolutePath(), "-out", outFile,
-                    "-signer", tempSignerBlob.getAbsolutePath(), "-inkey", tempKey.getAbsolutePath()};
-
-        BashReader bashReader = BashReader.read(args);
-        if (bashReader == null || bashReader.getExitValue() != 0) {
-            if (bashReader == null) {
-                throw new PKCS7Exception("The command \"" + BashReader.toSingleString(args) + "\" failed (null).");
-            }
-            throw new PKCS7Exception("The command \"" + BashReader.toSingleString(args) + "\" failed - " + bashReader.getOutput() + " ("+bashReader.getExitValue()+")");
-        }
-
-        // Now we have a file with signed data.
-        this.signedData = BashReader.toSingleString(FileReader.getLines(outFile)).getBytes();
-        this.isSigned = true;
-
-        if (cleanTempFiles()) {
-            Logger.debug("PKCS7", "PKCS7.sign(): Temp files all cleaned up.");
-        } else {
-            Logger.debug("PKCS7", "PKCS7.sign(): Temp files NOT cleaned up (all or some).");
-        }
-        return isSigned;
     }
 
     public boolean encrypt() throws CertificateException {
-        if (!isSigned || signedData == null) {
+        if (!isSigned || getSignedDataDER() == null || getSignedDataPEM() == null) {
             throw new CertificateException("Please sign the PKCS7 first with a signer and its private key.");
         }
 
@@ -186,13 +81,13 @@ public class PKCS7 implements Signable, Dumpable {
         File tempSigned = new File("tmp/temp-"+getFilename(false)+".signed");
         File tempEnc = new File("tmp/temp-"+getFilename(false)+".encrypted");
         if (!tempSigned.exists()) {
-            FileWriter.write(getSignedDataAsString(), tempSigned.getPath());
+            FileWriter.write(getDERSignedDataAsString(), tempSigned.getPath());
         }
         addTempFile(tempSigned);
 
         //Create a temp file that will contain the signer
         File tempSignerBlob = new File("tmp/temp-"+getFilename(false)+".signer");
-        if (!FileWriter.write(this.certSigner.getBlob(), tempSignerBlob.getAbsolutePath())) {
+        if (!FileWriter.write(this.getCertSigner().getBlob(), tempSignerBlob.getAbsolutePath())) {
             throw new PKCS7Exception("Couldn't write the signer's blob of data to the file.");
         }
         addTempFile(tempSignerBlob);
@@ -208,7 +103,7 @@ public class PKCS7 implements Signable, Dumpable {
         }
 
         // Now we have a file with encrypted data!
-        this.encryptedData = BashReader.toSingleString(FileReader.getLines(tempEnc)).getBytes();
+        this.encryptedData = BashReader.toSingleString(FileReader.getLines(tempEnc)).trim().getBytes();
         this.isEncrypted = true;
 
         if (cleanTempFiles()) {
@@ -225,102 +120,12 @@ public class PKCS7 implements Signable, Dumpable {
     }
 
     @Override
-    public byte[] dumpDER() {
-        // Convert the blob of data to a DER contents
-        if (contents == null) {
-            return null;
+    public boolean sign() throws PKCS7Exception {
+        try {
+            return super.sign();
+        } catch (SignatureException e) {
+            throw new PKCS7Exception(e);
         }
-        return new byte[0];
-    }
-
-    @Override
-    public String dumpPEM() {
-        return contents;
-    }
-
-    public String getSignedDataAsString() {
-        if (signedData == null) {
-            return null;
-        }
-        return new String(signedData);
-    }
-
-    public String getEncryptedDataAsString() {
-        if (encryptedData == null) {
-            return null;
-        }
-        return new String(encryptedData);
-    }
-
-    public FileType getType() {
-        return type;
-    }
-
-    public boolean isSigned() {
-        return isSigned;
-    }
-
-    public boolean isEnveloped() {
-        return isEnveloped;
-    }
-
-    private void addTempFile(File tempFile) {
-        if (tempFiles == null) {
-            tempFiles = new ArrayList<>();
-        }
-        tempFiles.add(tempFile);
-    }
-
-    private boolean cleanTempFiles() {
-        if (tempFiles == null || tempFiles.isEmpty()) {
-            return true;
-        }
-        boolean ok = true;
-        for (File file : tempFiles) {
-            if (!file.delete()) {
-                ok = false;
-            }
-        }
-        tempFiles = null;
-        return ok;
-    }
-
-    public void verify() throws PKCS7Exception {
-        /**
-         * How to verify PKCS7 signed data?
-         *
-         * 1) Generate a RSA test key and certificate if no one is available
-         * openssl req -x509 -nodes -newkey rsa:2048 -keyout keyfile.key -out certificate.cer -subj "my subject"
-         *
-         * 2) Get the file to be signed:
-         * echo "My data to be signed" > data.txt
-         *
-         * 3) Sign the data with the signer and its key
-         * openssl cms -sign -md sha256 -binary -nocerts -noattr -in data.txt -out data.signed -outform DER -inkey keyfile.key -signer certificate.cer
-         *
-         * 4) Locate the signature
-         * openssl asn1parse -inform der -in data.signed
-         *
-         * 5) Extract binary RSA encrypted hash
-         * dd if=data.signed of=signed-sha256.bin bs=1 skip=$[ 171 + 3 ] count=128
-         *
-         * 6) Verify the extracted data
-         * hexdump -C signed-sha256.bin
-         *
-         * 7) Extract the public key from the certificate
-         * openssl x509 -inform PEM -in certificate.cer -noout -pubkey > pubkey.pem
-         *
-         * 8) Verify the signature
-         * openssl rsautl -verify -pubin -inkey pubkey.pem < signed-sha256.bin > verified.bin
-         *
-         * 9) Run hexdump -C verified.bin
-         * hexdump -C verified.bin
-         *
-         * 10) Do another asn1parse to compare last command's hex dump to this one's
-         * openssl asn1parse -inform DER -in verified.bin
-         *
-         * (taken from: http://qistoph.blogspot.ca/2012/01/manual-verify-pkcs7-signed-data-with.html)
-         * */
     }
 
     public static void main(String[] args) {
@@ -362,13 +167,28 @@ public class PKCS7 implements Signable, Dumpable {
                 "FhzL5AUEAaAcCf+fPuNgFUITOcM0YYGvzXD0vUrtrzfhSk2wFAU+olH/yYM+0mJ7\n" +
                 "ZgVL5zy55NHa7XsrcIVs576RGA6czEoetftYGRykS8zU6SOKFumC86ojkBKeYw==\n" +
                 "-----END PKCS7-----\n";
-        PKCS7 pkcs7 = new PKCS7(rawData, false);
-        pkcs7.createFilename();
-        try {
-            pkcs7.sign(Certificate.loadCertificateFromFile("~/Desktop/server.pem"));
-            System.out.print(pkcs7.getSignedDataAsString());
-        } catch (CertificateException e) {
-            e.printStackTrace();
-        }
+//        rawData = BashReader.toSingleString(FileReader.getLines("/home/aakintol/Downloads/cbn_dsa-cert.pem"));
+//        PKCS7 pkcs7 = new PKCS7(rawData, false);
+//        pkcs7.createFilename();
+//        try {
+//            Certificate signer = Certificate.loadCertificateFromFile("test-signer.pem");
+//            PrivateKey privateKey = PrivateKey.loadPrivateKey(new File("test-key.key"));
+//
+//            pkcs7.setCertSigner(signer);
+//            pkcs7.setPrivateKeySigner(privateKey);
+//            pkcs7.sign();
+//            pkcs7.encrypt();
+//            System.out.print(pkcs7.getEncryptedDataAsString());
+//        } catch (CertificateException e) {
+//            e.printStackTrace();
+//        }
+
+//        BashReader bashReader = BashReader.read("/bin/sh", "-c cat test-key.key >> ok.ok");
+//        if (bashReader != null) {
+//            System.out.print(bashReader.getExitValue());
+//            FileReader.getLines("ok.ok");
+//        } else {
+//            System.out.println("HMMM.");
+//        }
     }
 }

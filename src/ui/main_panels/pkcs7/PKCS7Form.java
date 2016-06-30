@@ -23,6 +23,7 @@ import java.awt.Toolkit;
  * Created by aakintol on 29/06/16.
  */
 public class PKCS7Form implements HostPanel {
+
     private JPanel panel1;
     private JButton importCertButton;
     private JButton importKeyButton;
@@ -173,7 +174,7 @@ public class PKCS7Form implements HostPanel {
                     textArea2.setText(pkcs7.getEncryptedDataAsString());
                 } else {
                     JOptionPane.showMessageDialog(parent, "The encryption is complete! You can view the results on the right pane.");
-                    textArea2.setText(pkcs7.getSignedDataAsString());
+                    textArea2.setText(pkcs7.getDERSignedDataAsString());
                 }
                 textArea2.setCaretPosition(0);
             }
