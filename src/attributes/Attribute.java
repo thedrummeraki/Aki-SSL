@@ -47,5 +47,12 @@ public class Attribute extends Signable {
     }
 
 
-
+    public boolean contains(String string) {
+        for (Field field : this.fields) {
+            if (field.getKey().equals(string)) {
+                return true;
+            }
+        }
+        return false;
+    }
 }

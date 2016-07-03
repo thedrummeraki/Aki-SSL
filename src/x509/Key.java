@@ -23,8 +23,10 @@ public abstract class Key implements Dumpable {
     private boolean isPublic;
     private boolean isPrivate;
 
-    Key() throws CertificateException {
-        this(false, false);
+    Key() {
+        bits = 2048;
+        format = "X.509";
+        algorithm = "rsa";
     }
 
     Key(boolean isPrivate, boolean isPublic) throws CertificateException {
@@ -84,6 +86,16 @@ public abstract class Key implements Dumpable {
         return pemContents;
     }
 
+    protected void setPublic() {
+        this.isPrivate = false;
+        this.isPublic = true;
+    }
+
+    protected void setPrivate() {
+        this.isPrivate = true;
+        this.isPublic = false;
+    }
+
     public static byte[] toDER(String pemContents) throws CertificateException {
         // openssl rsa -in key.pem -outform DER -out keyout.der
         if (pemContents == null) {
@@ -118,13 +130,9 @@ public abstract class Key implements Dumpable {
 
     public static void main(String[] args) {
         String contents = BashReader.toSingleString(FileReader.getLines("test-key.key"));
-        try {
-            PrivateKey privateKey = PrivateKey.loadPrivateKey(contents);
-            System.out.println(privateKey.dumpPEM());
-            System.out.println(new String(privateKey.dumpDER()));
-        } catch (CertificateException e) {
-            e.printStackTrace();
-        }
+        PrivateKey privateKey = PrivateKey.loadPrivateKey(contents);
+        System.out.println(privateKey.dumpPEM());
+        System.out.println(new String(privateKey.dumpDER()));
     }
 
     public void setPemContents(String pemContents) {

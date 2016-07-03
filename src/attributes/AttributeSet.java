@@ -60,6 +60,17 @@ public class AttributeSet {
         return attributes.get(index);
     }
 
+    public Attribute getAttribute(String key) {
+        for (Attribute attribute : this.attributes) {
+            for (Field field : attribute.getFields()) {
+                if (field.getKey().equals(key)) {
+                    return attribute;
+                }
+            }
+        }
+        return null;
+    }
+
     public Attribute getLastAttribute() {
         try {
             return this.getAttribute(this.size() - 1);
@@ -91,6 +102,15 @@ public class AttributeSet {
 
     public boolean contains(Attribute attribute) {
         return this.attributes.contains(attribute);
+    }
+
+    public boolean contains(String string) {
+        for (Attribute attribute : this.attributes) {
+            if (attribute.contains(string)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public int indexOf(Attribute attribute) {

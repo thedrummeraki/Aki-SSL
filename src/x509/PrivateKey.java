@@ -14,30 +14,23 @@ public class PrivateKey extends Key {
     private Certificate certificate;
     private Subject subject;
 
-    private PrivateKey() throws CertificateException {
-        super(true, false);
+    private PrivateKey() {
+        super();
+        this.setPrivate();
     }
 
     public static PrivateKey newInstance() {
-        try {
-            return new PrivateKey();
-        } catch (CertificateException e) {
-            return null;
-        }
+        return new PrivateKey();
     }
 
-    public static PrivateKey loadPrivateKey(File file) throws CertificateException {
+    public static PrivateKey loadPrivateKey(File file) {
         return loadPrivateKey(BashReader.toSingleString(FileReader.getLines(file)));
     }
 
-    public static PrivateKey loadPrivateKey(String buff) throws CertificateException {
-        try {
-            PrivateKey privateKey = new PrivateKey();
-            privateKey.setPemContents(buff);
-            return privateKey;
-        } catch (CertificateException e) {
-            return PrivateKey.newInstance();
-        }
+    public static PrivateKey loadPrivateKey(String buff) {
+        PrivateKey privateKey = new PrivateKey();
+        privateKey.setPemContents(buff);
+        return privateKey;
     }
 
     public Key create(Subject subject) {
@@ -50,6 +43,10 @@ public class PrivateKey extends Key {
             this.create(subject);
         }
         return pemContents;
+    }
+
+    public void setCertificate(Certificate certificate) {
+        this.certificate = certificate;
     }
 
     @Override

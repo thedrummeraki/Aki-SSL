@@ -44,7 +44,7 @@ from terminal_registration import *
 m2.load_nids()
 
 class ServerDaemon(object):
-    
+
     def __init__(self, config, quiet=False):
         self._config = config
         self.quiet = quiet
@@ -2192,7 +2192,7 @@ class SCEPServer(RPCServer):
         logging_context += (ca_name,)
         
         if ip is None:
-            ip = "unknown ip";
+            ip = "unknown ip"
         
         try:
             # Create a PKCS#7 object from the encoded form

@@ -3,12 +3,9 @@ package x509;
 import tools.*;
 import tools.FileReader;
 
-import javax.security.auth.x500.X500Principal;
 import java.io.*;
-import java.security.Principal;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
-import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 

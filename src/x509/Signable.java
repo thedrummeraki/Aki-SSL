@@ -1,7 +1,9 @@
 package x509;
 
+import attributes.Attribute;
 import attributes.AttributeSet;
 
+import pkcs7.PKCS7Exception;
 import tools.BashReader;
 import tools.FileReader;
 import tools.FileWriter;
@@ -98,6 +100,14 @@ public class Signable implements Dumpable {
 
     public boolean isSigned() {
         return isSigned;
+    }
+
+    public AttributeSet getSignedAttributes() {
+        return signedAttributes;
+    }
+
+    public Attribute getAttribute(String key) {
+        return this.signedAttributes.getAttribute(key);
     }
 
     private String getFileExtension() {

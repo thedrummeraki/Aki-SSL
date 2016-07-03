@@ -128,6 +128,10 @@ public class PKCS7 extends Signable {
         }
     }
 
+    public void verifySignature(Certificate caCert) throws PKCS7Exception {
+
+    }
+
     public static void main(String[] args) {
         String rawData = "-----BEGIN PKCS7-----\n" +
                 "MIIGugYJKoZIhvcNAQcCoIIGqzCCBqcCAQExDjAMBggqhkiG9w0CBQUAMIIDIQYJ\n" +
