@@ -120,7 +120,7 @@ public class PKCS7 extends Signable {
     }
 
     @Override
-    public boolean sign() throws PKCS7Exception {
+    public boolean sign() throws CertificateException {
         try {
             return super.sign();
         } catch (SignatureException e) {
@@ -172,25 +172,28 @@ public class PKCS7 extends Signable {
                 "ZgVL5zy55NHa7XsrcIVs576RGA6czEoetftYGRykS8zU6SOKFumC86ojkBKeYw==\n" +
                 "-----END PKCS7-----\n";
 //        rawData = BashReader.toSingleString(FileReader.getLines("/home/aakintol/Downloads/cbn_dsa-cert.pem"));
-//        PKCS7 pkcs7 = new PKCS7(rawData, false);
+        Signable pkcs7 = new Signable();
+        pkcs7.setContents(rawData);
 //        pkcs7.createFilename();
-//        try {
-//            Certificate signer = Certificate.loadCertificateFromFile("test-signer.pem");
-//            PrivateKey privateKey = PrivateKey.loadPrivateKey(new File("test-key.key"));
-//
-//            pkcs7.setCertSigner(signer);
-//            pkcs7.setPrivateKeySigner(privateKey);
-//            pkcs7.sign();
-//            pkcs7.encrypt();
-//            System.out.print(pkcs7.getEncryptedDataAsString());
-//        } catch (CertificateException e) {
-//            e.printStackTrace();
-//        }
+        try {
+            Certificate signer = Certificate.loadCertificateFromFile("test-signer.pem");
+            PrivateKey privateKey = PrivateKey.loadPrivateKey(new File("test-key.key"));
 
-//        BashReader bashReader = BashReader.read("/bin/sh", "-c cat test-key.key >> ok.ok");
+            pkcs7.setCertSigner(signer);
+            pkcs7.setPrivateKeySigner(privateKey);
+            pkcs7.sign();
+            int v = pkcs7.verify();
+            System.exit(v);
+            System.out.println(pkcs7.getDERSignedDataAsString());
+        } catch (CertificateException e) {
+            e.printStackTrace();
+            System.exit(1);
+        }
+
+//        BashReader bashReader = BashReader.read("python", "hexdump", "-in", "verified.bin");
 //        if (bashReader != null) {
-//            System.out.print(bashReader.getExitValue());
-//            FileReader.getLines("ok.ok");
+//            System.out.println(bashReader.getExitValue());
+//            System.out.println(bashReader.getOutput());
 //        } else {
 //            System.out.println("HMMM.");
 //        }

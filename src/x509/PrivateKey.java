@@ -2,6 +2,7 @@ package x509;
 
 import tools.BashReader;
 import tools.FileReader;
+import tools.FileWriter;
 import tools.Logger;
 
 import java.io.File;
@@ -83,5 +84,33 @@ public class PrivateKey extends Key {
         }
         Logger.error("PrivateKey", "Private key properly generated.");
         return this;
+    }
+
+    @Override
+    public void check(Certificate certificate) throws CertificateException {
+        // Check if the certificate matches the certificate
+        String certificateBlob = certificate.getBlob();
+        if (certificateBlob == null || certificateBlob.isEmpty()) {
+            throw new CertificateException("The certificate's contents are not valid (empty).");
+        }
+        if (this.subject == null) {
+            this.subject = certificate.getSubject();
+        }
+        if (this.subject == null) {
+            throw new CertificateException("Invalid subject (null).");
+        }
+        File tempThis = new File("tmp/temp-privKey.key");
+        if (!FileWriter.write(this.dumpPEM(subject), tempThis.getPath())) {
+            throw new CertificateException("Couldn't write the private key to a temporary file.");
+        }
+        File tempCert = new File("tmp/temp-certif.cert");
+        if (!FileWriter.write(certificateBlob, tempCert.getPath())) {
+            throw new CertificateException("Couldn't write the certificate to a temporary file.");
+        }
+        String modKey = Modulus.get(tempThis, false);
+        String modCert = Modulus.get(tempCert, true);
+        if (!modCert.trim().equals(modKey.trim())) {
+            throw new KeyException();
+        }
     }
 }

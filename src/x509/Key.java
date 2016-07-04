@@ -138,4 +138,6 @@ public abstract class Key implements Dumpable {
     public void setPemContents(String pemContents) {
         this.pemContents = pemContents;
     }
+
+    public abstract void check(Certificate certificate) throws CertificateException;
 }

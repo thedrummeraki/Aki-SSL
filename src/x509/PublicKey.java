@@ -20,4 +20,9 @@ public class PublicKey extends Key {
             return null;
         }
     }
+
+    @Override
+    public void check(Certificate certificate) throws CertificateException {
+
+    }
 }

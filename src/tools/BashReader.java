@@ -29,7 +29,10 @@ public final class BashReader {
     }
 
     public String getOutput() {
-        return output;
+        if (output == null) {
+            return "";
+        }
+        return output.trim();
     }
 
     public String getCommand() {
@@ -49,6 +52,19 @@ public final class BashReader {
         String command = "";
         for (String s : subCommands) {
             command += (s + " ");
+        }
+        try {
+            return readAndThrow(command);
+        } catch (Exception e) {
+            Logger.error(e.getClass(), e.getMessage(), true);
+            return null;
+        }
+    }
+
+    public static BashReader read(Object... subCommands) {
+        String command = "";
+        for (Object o : subCommands) {
+            command += (o + " ");
         }
         try {
             return readAndThrow(command);
@@ -148,16 +164,16 @@ public final class BashReader {
                 s += s1 + '\n';
             }
         }
-        return s;
+        return s.trim();
     }
 
-    public static String toSingleString(String... args) {
+    public static String toSingleString(Object... args) {
         String s = "";
         if (args != null) {
-            for (String s1 : args) {
-                s += s1 + ' ';
+            for (Object s1 : args) {
+                s += s1 + " ";
             }
         }
-        return s;
+        return s.trim();
     }
 }

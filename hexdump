@@ -1,0 +1,39 @@
+import sys
+from os import path
+
+args = sys.argv
+
+usage = '''
+
+    Usage: python %s -in infile.data [-out outfile.data] [-noout]
+
+    Outfile is the file containing the output of the command.
+    Add option -noout to avoid external output.
+
+''' % args[0]
+
+if "-in" not in args:
+    print "Missing option -in."
+    print usage
+    sys.exit(127)
+
+output = args[args.index("-out")+1] if "-out" in args else None
+if output == "-in" or output == "-noout":
+    print "Invalid usage of -out. You need to specify a valid filename, not an option."
+    print usage
+    sys.exit(127)
+
+infile = args[args.index("-in")+1]
+
+if not path.exists(infile):
+    print "The file %s does not exist." % infile
+    sys.exit(1)
+
+with open(infile) as f:
+    hexdump = f.read().encode('hex')
+
+if "-noout" not in args:
+    print hexdump if len(hexdump) != 0 else "%s - Nothing to show." % args[0]
+
+if output:
+    open(output, "w").write(hexdump)

@@ -13,6 +13,7 @@ import x509.SignatureException;
 import java.io.File;
 import java.math.BigInteger;
 import java.security.SecureRandom;
+import java.util.Stack;
 
 /**
  * Created by aakintol on 30/06/16.
@@ -20,12 +21,12 @@ import java.security.SecureRandom;
 public final class SCEPResponse {
 
     public static final String SCEP_STATUS_SUCCESS = "0";
-    public static final String SCEP_FAILINFO_BADMESSAGECHECK = "1";
     public static final String SCEP_STATUS_FAILED = "2";
     public static final String SCEP_STATUS_PENDING = "3";
     public static final String SCEP_CERTREP = "3";
 
-
+    public static final String SCEP_FAILINFO_BADMESSAGECHECK = "1";
+    public static final String SCEP_FAILINFO_BADREQUEST = "2";
 
     public static final String SCEP_PKCSREQ = "19";
     public static final String SCEP_GETCERTINITIAL = "20";
@@ -66,7 +67,7 @@ public final class SCEPResponse {
             PrivateKey privateKey = PrivateKey.loadPrivateKey(keyDump);
             caCertificate = certificate;
             caCertificate.setPrivateKey(privateKey);
-        } catch (Exception e) {
+        } catch (Throwable e) {
             Logger.error(LOG_ID, "Could initialize the CA certificate.");
             return SCEP_CA_CERT_ERROR;
         }
@@ -111,12 +112,43 @@ public final class SCEPResponse {
         }
 
         Attribute messageType = signedAttributes.getAttribute("messageType");
+        String messType = messageType.toString();
 
+        int returnCode = 0;
 
-        int returnCode = SCEP_SUCCESS;
+        if (messType.equals(SCEP_PKCSREQ)) {
+
+        } else if (messType.equals(SCEP_GETCERTINITIAL)) {
+
+        } else if (messType.equals(SCEP_GETCERT)) {
+
+        } else {
+            return failureResponse(null, null, null, SCEP_FAILINFO_BADREQUEST);
+        }
+
         // The signed results will be found in a file
         return FileWriter.write("", outputFile.getPath()) ? returnCode : WRITE_ERROR;
     }
+
+    private int handlePKCSReq(Certificate caCertificate, PKCS7 pkcs7, String ip) {
+        LOG_ID = DEF_LOG_ID + ".handlePKCS7Req(Certificate,PKCS7,String)";
+        Logger.info(LOG_ID, "Handling PKCS request...");
+
+//        Envelope envelope = this.handleEnvelope(caCertificate, pkcs7, ip, false);
+//        if (!envelope.isValid()) {
+//            // Return its result.
+//        }
+
+        Stack<Certificate> certificateStack = new Stack<>();
+        caCertificate.isSelfSigned();
+
+        return 0;
+    }
+
+//    private Envelope handleEnvelope(Certificate caCertificate, PKCS7 pkcs7, String ip, boolean loadRequest) {
+//
+//        return new Envelope();
+//    }
 
     private int failureResponse(Certificate certificate, Attribute transactionID, Attribute senderNonce, String messageType) {
         LOG_ID = DEF_LOG_ID + ".failureResponse(Certificate,Attribute,Attribute,String)";
@@ -133,12 +165,17 @@ public final class SCEPResponse {
     }
 
     public static int loadSCEPResponse(String caDump, String keyDump, String message, String ip, String output, String failFile, String pendingFile, String successFile) {
+        LOG_ID = DEF_LOG_ID + ".loadSCEPResponse(String,String,String,String,String,String,String,String)";
+        Logger.info(LOG_ID, "Initializing the SCEP response...");
         SCEPResponse response = new SCEPResponse();
         int code = response.initialize(caDump, keyDump, message, ip);
         if (code != 0) {
             return code;
         }
-        return response.pkcs7();
+        int returnCode = response.pkcs7();
+        LOG_ID = DEF_LOG_ID + ".loadSCEPResponse(String,String,String,String,String,String,String,String)";
+        Logger.info(LOG_ID, "SCEP response initialized");
+        return returnCode;
     }
 
 }

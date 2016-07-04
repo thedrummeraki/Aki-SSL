@@ -17,6 +17,7 @@ import java.util.ArrayList;
  */
 public class Signable implements Dumpable {
 
+    private static final String TAG = Signable.class.getSimpleName();
     private Certificate certSigner;
     private PrivateKey privateKeySigner;
     private FileType type;
@@ -31,6 +32,11 @@ public class Signable implements Dumpable {
     private ArrayList<File> tempFiles;
 
     private String filename;
+    private String signedFilename;
+
+    public Signable() {
+        type = FileType.PEM;
+    }
 
     @Override
     public byte[] dumpDER() {
@@ -95,6 +101,9 @@ public class Signable implements Dumpable {
     }
 
     public String getFilename(boolean fullFilename) {
+        if (filename == null) {
+            filename = TAG;
+        }
         return fullFilename ? filename + getFileExtension() : filename;
     }
 
@@ -121,12 +130,12 @@ public class Signable implements Dumpable {
         }
     }
 
-    public void createFilename() {
+    protected void createFilename() {
         createFilename(20, true);
     }
 
     private void createFilename(int length, boolean hex) {
-        this.filename = FileWriter.dumpFilename(length, hex, getFileExtension());
+        this.filename = FileWriter.dumpFilename(length, hex, null);
     }
 
     public String getDERSignedDataAsString() {
@@ -157,7 +166,8 @@ public class Signable implements Dumpable {
         return ok;
     }
 
-    public boolean sign() throws SignatureException {
+    public boolean sign() throws CertificateException {
+        Logger.debug(TAG, "Attempting to sign the "+getClass().getSimpleName());
         if (this.contents == null || this.contents.trim().isEmpty()) {
             throw new SignatureException("No contents were found!");
         }
@@ -179,15 +189,22 @@ public class Signable implements Dumpable {
             // no need to sign it twice
             return true;
         }
+
+        // Make sure the private key and the certificate signer match
+        Logger.debug(TAG, "Checking the private key...");
+        this.privateKeySigner.check(this.certSigner);
+
         // Signs the raw data of the signable object
         // Create a temp file that will hold the raw data.
         File tempRawData = new File("tmp/temp-"+getFilename());
+        Logger.debug(TAG, "Writing the raw data to a temp file: "+tempRawData.getPath());
         if (!FileWriter.write(this.contents, tempRawData.getAbsolutePath())) {
             throw new SignatureException("Couldn't write the data to a temp file.");
         }
-        addTempFile(tempRawData);
+//        addTempFile(tempRawData);
         //Create a temp file that will contain the signer
         File tempSignerBlob = new File("tmp/temp-"+getFilename(false)+".signer");
+        Logger.debug(TAG, "Writing the signer's blob to a temp file: "+tempSignerBlob.getPath());
         if (!FileWriter.write(this.certSigner.getBlob(), tempSignerBlob.getAbsolutePath())) {
             throw new SignatureException("Couldn't write the signer's blob of data to the file.");
         }
@@ -195,13 +212,13 @@ public class Signable implements Dumpable {
 
         //Create a temp file that will contain the private key
         File tempKey = new File("tmp/temp-"+getFilename(false)+".key");
-        Logger.debug("PKCS7", "Trying to write to the file.");
+        Logger.debug(TAG, "Writing the key to a temp file: "+tempKey.getPath());
         if (!FileWriter.write(this.privateKeySigner.dumpPEM(this.certSigner.getSubject()), tempKey.getAbsolutePath())) {
             throw new SignatureException("Couldn't write the signer's private key to the file.");
         }
         addTempFile(tempKey);
 
-        String outFile = "temp-"+getFilename(false)+".signed";
+        signedFilename = "temp-"+getFilename(false)+".signed";
 
         /**
          * How would we sign the contents?
@@ -210,11 +227,16 @@ public class Signable implements Dumpable {
          *
          * Choice 2:
          * openssl cms -sign -md sha256 -binary -nocerts -noattr -in data.txt -out data.signed -outform DER -signer signer.pem -inkey signer.key
+         * openssl cms -sign -md sha1 -binary -in data.txt -outform der -out signed.data -signer test-signer.pem -inkey test-key.key
          * */
 
-        String[] args = {"openssl", "cms", "-sign", "-binary", "-in", tempRawData.getAbsolutePath(), "-out", outFile,
-                "-signer", tempSignerBlob.getAbsolutePath(), "-inkey", tempKey.getAbsolutePath()};
+        String[] args = {"openssl", "cms", "-sign", "-md", "sha1", "-binary", "-in", tempRawData.getAbsolutePath(), "-out", signedFilename,
+                "-outform", "DER", "-signer", tempSignerBlob.getAbsolutePath(), "-inkey", tempKey.getAbsolutePath()};
 
+        args = new String[] {"openssl", "cms", "-sign", "-md", "sha1", "-binary", "-in", tempRawData.getPath(), "-outform", "PEM",
+                "-out", signedFilename, "-signer", tempSignerBlob.getPath(), "-inkey", tempKey.getPath()};
+
+        Logger.debug(TAG, "Executing '"+BashReader.toSingleString(args)+"'");
         BashReader bashReader = BashReader.read(args);
         if (bashReader == null || bashReader.getExitValue() != 0) {
             if (bashReader == null) {
@@ -223,41 +245,8 @@ public class Signable implements Dumpable {
             throw new SignatureException("The command \"" + BashReader.toSingleString(args) + "\" failed - " + bashReader.getOutput() + " ("+bashReader.getExitValue()+")");
         }
 
-        // Now we have a file with DER signed data.
-        this.signedDataDER = BashReader.toSingleString(FileReader.getLines(outFile)).trim().getBytes();
-
-        args = new String[]{"openssl", "cms", "-sign", "-binary", "-outform", "DER", "-in", tempRawData.getAbsolutePath(), "-out", outFile,
-                "-signer", tempSignerBlob.getAbsolutePath(), "-inkey", tempKey.getAbsolutePath()};
-
-        bashReader = BashReader.read(args);
-        if (bashReader == null || bashReader.getExitValue() != 0) {
-            if (bashReader == null) {
-                throw new SignatureException("The command \"" + BashReader.toSingleString(args) + "\" failed (null).");
-            }
-            throw new SignatureException("The command \"" + BashReader.toSingleString(args) + "\" failed - " + bashReader.getOutput() + " ("+bashReader.getExitValue()+")");
-        }
-
-        // Now we have a file with PEM signed data.
-        this.signedDataPEM = BashReader.toSingleString(FileReader.getLines(outFile)).trim();
-        this.isSigned = true;
-
-        if (cleanTempFiles()) {
-            Logger.debug("PKCS7", "PKCS7.sign(): Temp files all cleaned up.");
-        } else {
-            Logger.debug("PKCS7", "PKCS7.sign(): Temp files NOT cleaned up (all or some).");
-        }
-        return isSigned;
-    }
-
-    public void verify() throws SignatureException {
-
-        if (!isSigned || signedDataDER == null || signedDataPEM == null) {
-            sign();
-        }
-        // Locate the signature
-        File tempSigned = new File("tmp/temp-signed.txt");
-        FileWriter.write(this.getDERSignedDataAsString(), tempSigned.getPath());
-        String[] args = {"openssl", "-inform", "DER", "-in", tempSigned.getPath()};
+        args = new String[] {"openssl", "asn1parse", "-inform", "PEM", "-in", signedFilename};
+        Logger.debug(TAG, "Executing '"+BashReader.toSingleString(args)+"'");
         BashReader br = BashReader.read(args);
         if (br == null || br.getExitValue() != 0) {
             if (br == null) {
@@ -266,11 +255,52 @@ public class Signable implements Dumpable {
             throw new SignatureException("The command \"" + BashReader.toSingleString(args) + "\" failed - " + br.getOutput() + " ("+br.getExitValue()+")");
         }
 
-        Logger.debug("PKCS7", "ASN1 Located signature: "+br.getOutput());
+        // Now we have a file with DER signed data.
+        this.signedDataDER = BashReader.toSingleString(FileReader.getLines(signedFilename)).trim().getBytes();
+
+//        args = new String[]{"openssl", "cms", "-sign", "-binary", "-outform", "DER", "-in", tempRawData.getAbsolutePath(), "-out", signedFilename,
+//                "-signer", tempSignerBlob.getAbsolutePath(), "-inkey", tempKey.getAbsolutePath()};
+
+//        bashReader = BashReader.read(args);
+//        if (bashReader == null || bashReader.getExitValue() != 0) {
+//            if (bashReader == null) {
+//                throw new SignatureException("The command \"" + BashReader.toSingleString(args) + "\" failed (null).");
+//            }
+//            throw new SignatureException("The command \"" + BashReader.toSingleString(args) + "\" failed - " + bashReader.getOutput() + " ("+bashReader.getExitValue()+")");
+//        }
+
+        // Now we have a file with PEM signed data.
+        this.signedDataPEM = BashReader.toSingleString(FileReader.getLines(signedFilename)).trim();
+        this.isSigned = true;
+
+//        if (cleanTempFiles()) {
+//            Logger.debug(TAG, TAG + ".sign(): Temp files all cleaned up.");
+//        } else {
+//            Logger.debug(TAG, TAG + ".sign(): Temp files NOT cleaned up (all or some).");
+//        }
+        return isSigned;
+    }
+
+    public int verify() throws SignatureException {
+
+        if (!isSigned || signedDataDER == null || signedDataPEM == null) {
+            throw new SignatureException("You need to sign the data first by calling "+ TAG +".sign()");
+        }
+        // Locate the signature
+        File tempSigned = new File(signedFilename);
+        FileWriter.write(this.getDERSignedDataAsString(), tempSigned.getPath());
+        String[] args = {"openssl", "asn1parse", "-inform", "PEM", "-in", signedFilename};
+        BashReader br = BashReader.read(args);
+        if (br == null || br.getExitValue() != 0) {
+            if (br == null) {
+                throw new SignatureException("The command \"" + BashReader.toSingleString(args) + "\" failed (null).");
+            }
+            throw new SignatureException("The command \"" + BashReader.toSingleString(args) + "\" failed - " + br.getOutput() + " ("+br.getExitValue()+")");
+        }
 
         // Extract the binary RSA encrypted hash
         int offset = 0, header = 0, length = 0;
-        String hashAlg = "sha256";
+        String hashAlg = "sha1";
         File ddOfFile = new File("signed-"+hashAlg+".bin");
         try {
             ArrayList<String> outputLines = br.getLines();
@@ -314,10 +344,12 @@ public class Signable implements Dumpable {
             s = s.trim();
             length = Integer.parseInt(s);
 
-            args = new String[] {"dd", String.format("if=%s", tempSigned.getPath()), String.format("of=%s", ddOfFile.getPath()), "bs=1", "skip$[",
-                    Integer.toString(offset), "+", Integer.toString(header), "]", String.format("count=%s", length)};
+//            args = new String[] {"dd", String.format("if=%s", tempSigned.getPath()), String.format("of=%s", ddOfFile.getPath()), "bs=1", "skip=$[",
+//                    Integer.toString(offset), "+", Integer.toString(header), "]", String.format("count=%s", length)};
 
-            br = BashReader.read(args);
+            Object[] oargs = new Object[] {"python", "dder.py", tempSigned.getPath(), ddOfFile.getPath(), 1, offset, header, length};
+
+            br = BashReader.read(oargs);
             if (br == null || br.getExitValue() != 0) {
                 if (br == null) {
                     throw new SignatureException("The command \"" + BashReader.toSingleString(args) + "\" failed (null).");
@@ -369,15 +401,85 @@ public class Signable implements Dumpable {
          * */
 
         // Verify the extracted signature (for Logging purposes).
-        args = new String[] {"hexdump", "-C", ddOfFile.getPath()};
+        args = new String[] {"python", "hexdump", "-in", ddOfFile.getPath()};
         br = BashReader.read(args);
         if (br != null) {
-            Logger.debug("PKCS7", "Extracted signature: "+br.getOutput());
+            Logger.debug(TAG, "python hexdump output: "+br.getOutput());
         }
 
         // Extract the public key from the certificate signer
         File tempSigner = new File("tmp/temp-signer.pem");
-        File tempSignerPubKey = new File("tmp/temp-signer.pem");
-        args = new String[] {"openssl", "x509", "-inform", "PEM", "-in", tempSigner.getPath(), "-noout", "-pubkey > ", tempSignerPubKey.getPath()};
+        Logger.debug(TAG, "Writing the signer's blob to a temp file: "+tempSigner.getPath());
+        if (!FileWriter.write(this.certSigner.getBlob(), tempSigner.getAbsolutePath())) {
+            throw new SignatureException("Couldn't write the signer's blob of data to the file.");
+        }
+        addTempFile(tempSigner);
+
+        File tempSignerPubKey = new File("tmp/temp-signer-pubkey.pem");
+
+        args = new String[] {"openssl", "x509", "-inform", "PEM", "-in", tempSigner.getPath(), "-noout", "-pubkey", "-out", tempSignerPubKey.getPath()};
+        br = BashReader.read(args);
+        if (br == null || br.getExitValue() != 0) {
+            if (br == null) {
+                throw new SignatureException("The command \"" + BashReader.toSingleString(args) + "\" failed (null).");
+            }
+            throw new SignatureException("The command \"" + BashReader.toSingleString(args) + "\" failed - " + br.getOutput() + " ("+br.getExitValue()+")");
+        }
+
+        Logger.debug(TAG, br.getOutput());
+        FileWriter.write(br.getOutput(), tempSignerPubKey.getPath(), false);
+
+        // Verify the signature
+        File tempVerifiedBinary = new File("tmp/verified.bin");
+        args = new String[] {"openssl", "rsautl", "-verify", "-pubin", "-inkey", tempSignerPubKey.getPath(), "-in", ddOfFile.getPath(), "-out", tempVerifiedBinary.getPath()};
+        br = BashReader.read(args);
+        if (br == null || br.getExitValue() != 0) {
+            if (br == null) {
+                throw new SignatureException("The command \"" + BashReader.toSingleString(args) + "\" failed (null).");
+            }
+            throw new SignatureException("The command \"" + BashReader.toSingleString(args) + "\" failed - " + br.getOutput() + " ("+br.getExitValue()+")");
+        }
+
+        // And, asn1parse on that verified signature
+        final String HEX_DUMP = "[HEX DUMP]:";
+        args = new String[] {"openssl", "asn1parse", "-inform", "DER", "-in", tempVerifiedBinary.getPath()};
+        br = BashReader.read(args);
+        if (br == null || br.getExitValue() != 0) {
+            if (br == null) {
+                throw new SignatureException("The command \"" + BashReader.toSingleString(args) + "\" failed (null).");
+            }
+            throw new SignatureException("The command \"" + BashReader.toSingleString(args) + "\" failed - " + br.getOutput() + " ("+br.getExitValue()+")");
+        }
+        String hexdump = null;
+        ArrayList<String> hexdumpLines = br.getLines();
+        for (String hexdumpLine : hexdumpLines) {
+            if (hexdumpLine.contains(HEX_DUMP)) {
+                int start = hexdumpLine.indexOf(HEX_DUMP) + HEX_DUMP.length();
+                int end = hexdumpLine.length();
+                hexdump = hexdumpLine.substring(start, end);
+            }
+        }
+        if (hexdump == null) {
+            return 1;
+        }
+        File sha1sum = new File("tmp/shatemp.file");
+        FileWriter.write(this.contents, sha1sum.getPath());
+        args = new String[] {"sha1sum", sha1sum.getPath()};
+        br = BashReader.read(args);
+        if (br == null || br.getExitValue() != 0) {
+            if (br == null) {
+                throw new SignatureException("The command \"" + BashReader.toSingleString(args) + "\" failed (null).");
+            }
+            throw new SignatureException("The command \"" + BashReader.toSingleString(args) + "\" failed - " + br.getOutput() + " ("+br.getExitValue()+")");
+        }
+        String sha1sumOutput = br.getOutput().substring(0, 40);
+
+        hexdump = hexdump.trim();
+        sha1sumOutput = sha1sumOutput.trim();
+
+        Logger.info(getClass(), "Hexdump1: "+hexdump, false);
+        Logger.info(getClass(), "Hexdump2: "+sha1sumOutput, false);
+
+        return hexdump.equals(sha1sumOutput) ? 0 : 1;
     }
 }

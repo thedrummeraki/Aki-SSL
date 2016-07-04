@@ -88,6 +88,20 @@ public final class FileWriter {
         return ok;
     }
 
+    public static synchronized boolean write(List<?> list, String path, boolean append) {
+        if (!append) {
+            new File(path).delete();
+        }
+        boolean ok = true;
+        for (Object o : list) {
+            ok = append(o.toString(), path);
+            if (!ok) {
+                Logger.error(FileWriter.class.getName(), "Couldn't write the object '"+o+"' (Hash # "+o.hashCode()+" - Class: "+o.getClass().getName()+")");
+            }
+        }
+        return ok;
+    }
+
     public static synchronized boolean append(String line, String path) {
         return write(line, path, true);
     }
