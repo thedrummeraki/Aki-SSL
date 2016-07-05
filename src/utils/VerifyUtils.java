@@ -1,6 +1,7 @@
 package utils;
 
 import tools.BashReader;
+import tools.FileWriter;
 import tools.Logger;
 import x509.*;
 
@@ -157,7 +158,7 @@ public final class VerifyUtils {
         }
     }
 
-
+    /* OK */
     public static int locateSignature(String inform, Signable signable) {
         debug(TAG, "Locating the signature");
         if (!check(signable)) {
@@ -196,16 +197,27 @@ public final class VerifyUtils {
         return 0;
     }
 
-    public static int performHexdump(String path) {
-        return performHexdump(new File(path));
+    public static int performHexdump(String path, Hexdump hexReceiver) {
+        return performHexdump(new File(path), hexReceiver);
     }
 
-    public static int performHexdump(File file) {
+    public static int performHexdump(File file, Hexdump hexReceiver) {
         if (file == null) {
             return NULL_OBJECT_ERROR;
         }
 
-        return 0;
+        String[] args = {"python", "hexdump", "-in", file.getPath()};
+        BashReader br = BashReader.read(args);
+
+        if (br == null) {
+            return NULL_OBJECT_RESULT_ERROR;
+        }
+
+        if (hexReceiver == null || !hexReceiver.isEmpty()) {
+            hexReceiver = new Hexdump();
+        }
+        hexReceiver.setDump(br.getOutput());
+        return br.getExitValue();
     }
 
     public static int extractPublicKeyFromCertificate(String inform, Signable signable) {
@@ -218,6 +230,11 @@ public final class VerifyUtils {
     public static int extractPublicKeyFromCertificate(String inform, Certificate certificate) {
         if (!catchNullInOneOf(inform, certificate)) {
             return NULL_OBJECT_ERROR;
+        }
+
+        PublicKey publicKey = certificate.fetchPublicKey();
+        if (publicKey == null) {
+            return NULL_OBJECT_RESULT_ERROR;
         }
 
         return 0;

@@ -1,5 +1,8 @@
 package x509;
 
+import tools.BashReader;
+import tools.FileReader;
+
 /**
  * Created by aakintol on 28/06/16.
  */
@@ -19,6 +22,14 @@ public class PublicKey extends Key {
         } catch (CertificateException e) {
             return null;
         }
+    }
+
+    void setPEMContents(Certificate certificate) {
+        this.pemContents = BashReader.toSingleString(true, FileReader.getLines(certificate.getPublicKeyFilename()));
+    }
+
+    public String getPEMContents() {
+        return this.pemContents;
     }
 
     @Override

@@ -2,6 +2,7 @@ package x509;
 
 import tools.*;
 import tools.FileReader;
+import tools.FileWriter;
 
 import java.io.*;
 import java.security.cert.CertificateFactory;
@@ -21,6 +22,8 @@ public class Certificate implements Dumpable {
     private Date notAfter;
     private Subject subject;
     private PublicKey subjectPublicKey;
+    private PublicKey publicKey;
+    private String publicKeyFilename;
     private PrivateKey privateKey;
     private Extensions extensions;
     private String blob;
@@ -47,6 +50,7 @@ public class Certificate implements Dumpable {
         notBefore = Calendar.getInstance().getTime();
         subject = new Subject(null, null);
         subjectPublicKey = PublicKey.newInstance();
+        publicKey = PublicKey.newInstance();
         extensions = new Extensions();
     }
 
@@ -64,6 +68,40 @@ public class Certificate implements Dumpable {
 
     public PrivateKey getPrivateKey() {
         return privateKey;
+    }
+
+    public PublicKey getSubjectPublicKey() {
+        return subjectPublicKey;
+    }
+
+    public void setPublicKey(PublicKey publicKey) {
+        this.publicKey = publicKey;
+    }
+
+    String getPublicKeyFilename() {
+        return publicKeyFilename;
+    }
+
+    public PublicKey fetchPublicKey(String inform) {
+        if (this.blob == null || this.blob.isEmpty()) {
+            return null;
+        }
+        if (filename == null || publicKeyFilename == null) {
+            writeToFilename();
+        }
+        String[] args = {"openssl", "x509", "-inform", inform, "-in", filename, "-noout", "-pubkey"};
+        BashReader br = BashReader.read(args);
+        if (br != null && br.getExitValue() == 0) {
+            FileWriter.write(br.getOutput(), publicKeyFilename);
+        } else {
+            Logger.error("Certificate", (br == null ? "Null BR" : "BR Exited with code: "+br.getExitValue()));
+        }
+        publicKey.setPEMContents(this);
+        return publicKey;
+    }
+
+    public PublicKey fetchPublicKey() {
+        return this.fetchPublicKey("pem");
     }
 
     public void setSubject(Subject subject) {
@@ -135,6 +173,20 @@ public class Certificate implements Dumpable {
     @Override
     public String dumpPEM() {
         return blob;
+    }
+
+    private void writeToFilename() {
+        String du = FileWriter.dumpFilename(10, true, ".pem");
+        filename = "tmp/cert-"+du;
+        publicKeyFilename = "tmp/cert-pubkey-"+du;
+        FileWriter.write(this.blob, filename);
+    }
+
+    private void clearFile() {
+        if (filename != null) {
+            new File(filename).delete();
+            filename = null;
+        }
     }
 
     public static Certificate loadCertificateFromFile(File file) throws CertificateException {

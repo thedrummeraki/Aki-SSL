@@ -5,6 +5,7 @@ import tools.BashReader;
 import tools.FileReader;
 import tools.FileWriter;
 import tools.Logger;
+import utils.Hexdump;
 import utils.SignUtils;
 import utils.VerifyUtils;
 import x509.*;
@@ -208,11 +209,16 @@ public class PKCS7 extends Signable {
             load = null;
         }
         Logger.debug("keygen: "+VerifyUtils.generateKey("rsa", 2048, new File("out.key"), new File("out.cert"), signable, load));
+
         signable.setContents("valid contents.");
         Logger.debug("sign: "+SignUtils.execOpenSSLCMSSign("sha1", true, false, false, signable));
         Logger.debug("signed? "+signable.isSigned());
         Logger.debug("locate sig pem: "+VerifyUtils.locateSignature("PEM", signable));
         Logger.debug("locate sig der: "+VerifyUtils.locateSignature("DER", signable));
+        Hexdump hexReceiver = new Hexdump();
+        Logger.debug("hexdump: "+VerifyUtils.performHexdump("hexdump", hexReceiver));
+        Logger.debug("hexdump result: "+hexReceiver.getDump());
+        Logger.debug("pub key extraction: "+VerifyUtils.extractPublicKeyFromCertificate("pem", signable));
 
 //        VerifyUtils.locateSignature("PEM", signable);
 //        try {
