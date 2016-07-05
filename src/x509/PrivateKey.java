@@ -25,7 +25,7 @@ public class PrivateKey extends Key {
     }
 
     public static PrivateKey loadPrivateKey(File file) {
-        return loadPrivateKey(BashReader.toSingleString(FileReader.getLines(file)));
+        return loadPrivateKey(BashReader.toSingleString(true, FileReader.getLines(file)));
     }
 
     public static PrivateKey loadPrivateKey(String buff) {
@@ -61,7 +61,7 @@ public class PrivateKey extends Key {
         }
         if (this.subject != null) {
             args = new String[]{"openssl", "req", "-nodes", "-newkey", String.format("%s:%s", this.algorithm, this.bits), "-keyout", keyFilename,
-                        "-out", csrFilename, "-subj", this.subject.getRawString()};
+                        "-out", csrFilename, "-subj", "'" + this.subject.getRawString() + "'"};
         } else {
             Logger.info("PrivateKey", "No subject.");
         }
@@ -70,10 +70,10 @@ public class PrivateKey extends Key {
             return null;
         }
         if (br.getExitValue() != 0) {
-            Logger.error("PrivateKey", br.getOutput() + ": " + br.getLines() + " ("+br.getExitValue()+")");
+            Logger.error("PrivateKey", (br.getOutput().isEmpty() ? "No output" : br.getOutput()) + ": " + br.getLines() + " ("+br.getExitValue()+")");
             return null;
         }
-        this.pemContents = BashReader.toSingleString(FileReader.getLines(keyFilename));
+        this.pemContents = BashReader.toSingleString(true, FileReader.getLines(keyFilename));
         try {
             this.derContents = toDER(this.pemContents);
         } catch (CertificateException e) {
@@ -93,14 +93,16 @@ public class PrivateKey extends Key {
         if (certificateBlob == null || certificateBlob.isEmpty()) {
             throw new CertificateException("The certificate's contents are not valid (empty).");
         }
-        if (this.subject == null) {
-            this.subject = certificate.getSubject();
-        }
-        if (this.subject == null) {
-            throw new CertificateException("Invalid subject (null).");
+        if (pemContents == null) {
+            if (this.subject == null) {
+                this.subject = certificate.getSubject();
+            }
+            if (this.subject == null) {
+                throw new CertificateException("Invalid subject (null).");
+            }
         }
         File tempThis = new File("tmp/temp-privKey.key");
-        if (!FileWriter.write(this.dumpPEM(subject), tempThis.getPath())) {
+        if (!FileWriter.write((pemContents == null ? this.dumpPEM(subject) : pemContents), tempThis.getPath())) {
             throw new CertificateException("Couldn't write the private key to a temporary file.");
         }
         File tempCert = new File("tmp/temp-certif.cert");
@@ -109,8 +111,20 @@ public class PrivateKey extends Key {
         }
         String modKey = Modulus.get(tempThis, false);
         String modCert = Modulus.get(tempCert, true);
-        if (!modCert.trim().equals(modKey.trim())) {
+        if (modKey == null || modCert == null || !modCert.trim().equals(modKey.trim())) {
             throw new KeyException();
+        }
+    }
+
+    public boolean doCheck(Certificate certificate) {
+        try {
+            check(certificate);
+            return true;
+        } catch (KeyException e) {
+            return false;
+        } catch (CertificateException e) {
+            e.printStackTrace();
+            return false;
         }
     }
 }

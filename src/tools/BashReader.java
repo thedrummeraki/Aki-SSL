@@ -48,15 +48,16 @@ public final class BashReader {
         return this;
     }
 
+    @Override
+    public String toString() {
+        return String.format("Command: %s\nExit value: %s", command, exitValue);
+    }
+
     public static BashReader read(String... subCommands) {
-        String command = "";
-        for (String s : subCommands) {
-            command += (s + " ");
-        }
         try {
-            return readAndThrow(command);
+            return readAndThrow(subCommands);
         } catch (Exception e) {
-            Logger.error(e.getClass(), e.getMessage(), true);
+            Logger.error(e.getClass(), e.getMessage(), false);
             return null;
         }
     }
@@ -74,15 +75,29 @@ public final class BashReader {
         }
     }
 
-    public static BashReader readAndThrow(String... subCommands) throws IOException, InterruptedException {
-        String command = "";
-        for (String s : subCommands) {
-            command += (s + " ");
+    public static BashReader readAndThrow(String command) throws IOException, InterruptedException {
+        String[] args = command.split(" ");
+        Runtime runtime = Runtime.getRuntime();
+        Process process = runtime.exec(args);
+        InputStream is = process.getInputStream();
+        InputStreamReader isr = new InputStreamReader(is);
+        BufferedReader br = new BufferedReader(isr);
+        StringBuilder sb = new StringBuilder();
+        String line;
+
+        ArrayList<String> output = new ArrayList<String>();
+
+        while ((line = br.readLine()) != null) {
+            output.add(line);
+            sb.append(line).append("\n");
         }
-        return readAndThrow(command);
+
+        process.waitFor();
+        BashReader bre = new BashReader(output, sb.toString(), process.exitValue());
+        return bre.setCommand(command);
     }
 
-    public static BashReader readAndThrow(String command) throws IOException, InterruptedException {
+    public static BashReader readAndThrow(String[] command) throws IOException, InterruptedException {
         Runtime runtime = Runtime.getRuntime();
         Process process = runtime.exec(command);
         InputStream is = process.getInputStream();
@@ -100,7 +115,7 @@ public final class BashReader {
 
         process.waitFor();
         BashReader bre = new BashReader(output, sb.toString(), process.exitValue());
-        return bre.setCommand(command);
+        return bre.setCommand(toSingleString(command));
     }
 
     public static ArrayList<String> execute(String... subCommands) {
@@ -158,10 +173,14 @@ public final class BashReader {
     }
 
     public static String toSingleString(ArrayList<String> strings) {
+        return toSingleString(false, strings);
+    }
+
+    public static String toSingleString(boolean newline, ArrayList<String> strings) {
         String s = "";
         if (strings != null) {
             for (String s1 : strings) {
-                s += s1 + '\n';
+                s += s1 + (newline ? '\n' : ' ');
             }
         }
         return s.trim();
@@ -172,6 +191,16 @@ public final class BashReader {
         if (args != null) {
             for (Object s1 : args) {
                 s += s1 + " ";
+            }
+        }
+        return s.trim();
+    }
+
+    public static String toSingleString(boolean newline, Object... args) {
+        String s = "";
+        if (args != null) {
+            for (Object s1 : args) {
+                s += s1 + String.valueOf((newline ? '\n' : ' '));
             }
         }
         return s.trim();

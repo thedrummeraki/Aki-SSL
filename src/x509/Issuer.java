@@ -123,6 +123,11 @@ public class Issuer {
         return result;
     }
 
+    @Override
+    public String toString() {
+        return getRawString();
+    }
+
     public boolean equals(Object o) {
         if (o == null) {
             return false;

@@ -25,7 +25,7 @@ public final class Modulus {
     }
 
     public static String get(File file, boolean cert) {
-        String contents = BashReader.toSingleString(FileReader.getLines(file));
+        String contents = BashReader.toSingleString(true, FileReader.getLines(file));
         return cert ? getFromCert(contents) : getFromKey(contents);
     }
 
@@ -50,7 +50,7 @@ public final class Modulus {
 
     private static String getFromKey(String contents) {
         File temp = new File("tmp/temp-modulus.key");
-        FileWriter.write(contents, temp.getPath());
+        FileWriter.write(contents.trim(), temp.getPath());
         String[] args = {"openssl", "rsa", "-noout", "-modulus", "-in", temp.getPath()};
         BashReader br = BashReader.read(args);
         if (br == null) {

@@ -5,6 +5,8 @@ import tools.BashReader;
 import tools.FileReader;
 import tools.FileWriter;
 import tools.Logger;
+import utils.SignUtils;
+import utils.VerifyUtils;
 import x509.*;
 
 /**
@@ -172,23 +174,23 @@ public class PKCS7 extends Signable {
                 "ZgVL5zy55NHa7XsrcIVs576RGA6czEoetftYGRykS8zU6SOKFumC86ojkBKeYw==\n" +
                 "-----END PKCS7-----\n";
 //        rawData = BashReader.toSingleString(FileReader.getLines("/home/aakintol/Downloads/cbn_dsa-cert.pem"));
-        Signable pkcs7 = new Signable();
-        pkcs7.setContents(rawData);
-//        pkcs7.createFilename();
-        try {
-            Certificate signer = Certificate.loadCertificateFromFile("test-signer.pem");
-            PrivateKey privateKey = PrivateKey.loadPrivateKey(new File("test-key.key"));
-
-            pkcs7.setCertSigner(signer);
-            pkcs7.setPrivateKeySigner(privateKey);
-            pkcs7.sign();
-            int v = pkcs7.verify();
-            System.exit(v);
-            System.out.println(pkcs7.getDERSignedDataAsString());
-        } catch (CertificateException e) {
-            e.printStackTrace();
-            System.exit(1);
-        }
+//        Signable pkcs7 = new Signable();
+//        pkcs7.setContents(rawData);
+////        pkcs7.createFilename();
+//        try {
+//            Certificate signer = Certificate.loadCertificateFromFile("test-signer.pem");
+//            PrivateKey privateKey = PrivateKey.loadPrivateKey(new File("test-key.key"));
+//
+//            pkcs7.setCertSigner(signer);
+//            pkcs7.setPrivateKeySigner(privateKey);
+//            pkcs7.sign();
+//            int v = pkcs7.verify();
+//            System.exit(v);
+//            System.out.println(pkcs7.getDERSignedDataAsString());
+//        } catch (CertificateException e) {
+//            e.printStackTrace();
+//            System.exit(1);
+//        }
 
 //        BashReader bashReader = BashReader.read("python", "hexdump", "-in", "verified.bin");
 //        if (bashReader != null) {
@@ -197,5 +199,43 @@ public class PKCS7 extends Signable {
 //        } else {
 //            System.out.println("HMMM.");
 //        }
+
+        Signable signable = new Signable();
+        Subject load;
+        try {
+            load = Subject.load("/C=CA/L=Ottawa/CN=cbnca");
+        } catch (Exception e) {
+            load = null;
+        }
+        Logger.debug("keygen: "+VerifyUtils.generateKey("rsa", 2048, new File("out.key"), new File("out.cert"), signable, load));
+        signable.setContents("valid contents.");
+        Logger.debug("sign: "+SignUtils.execOpenSSLCMSSign("sha1", true, false, false, signable));
+        Logger.debug("signed? "+signable.isSigned());
+        Logger.debug("locate sig pem: "+VerifyUtils.locateSignature("PEM", signable));
+        Logger.debug("locate sig der: "+VerifyUtils.locateSignature("DER", signable));
+
+//        VerifyUtils.locateSignature("PEM", signable);
+//        try {
+//            signable.setContents("HAHAHAHAHAHAH to sign.");
+//            signable.sign();
+//        } catch (CertificateException e) {
+//            e.printStackTrace();
+//        }
+
+//        BashReader br = BashReader.read("openssl req -key out.key -new -x509 -days 365 -out out.cert -subj \"/CN=cbnca/C=CA/L=Ottawa\"");
+//
+//        Logger.debug(br != null ? br.getExitValue() + " : "+br.getOutput() : "NULL");
+
+//        try {
+//            String[] argv = {"openssl", "req", "-nodes", "-newkey", String.format("%s:%s", "rsa", 2048), "-keyout", "java.key", "-subj", "/C=CA/L=Ottawa/OU=CBN"};
+//            BashReader br = BashReader.read(argv);
+//            Logger.debug(br != null ? br.toString() : "NULL");
+//            argv = new String[]{"openssl", "req", "-key", "java.key", "-new", "-x509", "-days", "365", "-out", "java.cert", "-subj", "/C=CA/L=Ottawa/OU=CBN"};
+//            br = BashReader.read(argv);
+//            Logger.debug(br != null ? br.toString() : "NULL");
+//        } catch (Exception e) {
+//            e.printStackTrace();
+//        }
+
     }
 }

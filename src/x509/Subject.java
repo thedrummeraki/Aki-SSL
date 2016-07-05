@@ -62,6 +62,18 @@ public class Subject {
         return o;
     }
 
+    public static boolean checkRawString(String rawString) {
+        if (rawString == null) {
+            return false;
+        }
+        try {
+            Subject s = load(rawString);
+            return s != null && !s.getRawString().isEmpty();
+        } catch (CertificateException e) {
+            return false;
+        }
+    }
+
     public static Subject load(String rawString) throws CertificateException {
         Subject subject = new Subject();
         if (!rawString.startsWith("/")) {
@@ -147,6 +159,11 @@ public class Subject {
             return getRawString().equals(((Subject) o).getRawString());
         }
         return false;
+    }
+
+    @Override
+    public String toString() {
+        return getRawString();
     }
 
     public static void main(String[] args) {

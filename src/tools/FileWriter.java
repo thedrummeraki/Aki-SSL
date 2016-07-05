@@ -111,7 +111,7 @@ public final class FileWriter {
         if (extension == null) {
             extension = ".txt";
         }
-        if (!extension.startsWith(".")) {
+        if (!extension.startsWith(".") && !extension.isEmpty()) {
             extension = "." + extension;
         }
         if (length < 1) {

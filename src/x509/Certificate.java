@@ -82,6 +82,10 @@ public class Certificate implements Dumpable {
         return subject;
     }
 
+    public Issuer getIssuer() {
+        return issuer;
+    }
+
     public boolean isSelfSigned() {
         return isSelfSigned(true);
     }
@@ -174,7 +178,7 @@ public class Certificate implements Dumpable {
                 }
             }
             certificate.filename = filename;
-            certificate.blob = BashReader.toSingleString(FileReader.getLines(filename));
+            certificate.blob = BashReader.toSingleString(true, FileReader.getLines(filename));
         }
         return certificate;
     }

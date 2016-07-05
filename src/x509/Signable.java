@@ -3,13 +3,12 @@ package x509;
 import attributes.Attribute;
 import attributes.AttributeSet;
 
-import pkcs7.PKCS7Exception;
 import tools.BashReader;
 import tools.FileReader;
 import tools.FileWriter;
 import tools.Logger;
 
-import java.io.File;
+import java.io.*;
 import java.util.ArrayList;
 
 /**
@@ -32,10 +31,20 @@ public class Signable implements Dumpable {
     private ArrayList<File> tempFiles;
 
     private String filename;
-    private String signedFilename;
+    private String contentsFilename;
+    private String signerFilename;
+    private String privateKeyFilename;
+    private String signedFilenamePEM;
+    private String signedFilenameDER;
 
     public Signable() {
         type = FileType.PEM;
+        String tempHex = FileWriter.dumpFilename(5, true, "");
+        contentsFilename = "tmp/temp-"+tempHex+"-contents.data";
+        signerFilename = "tmp/temp-"+tempHex+"-contents.signer";
+        privateKeyFilename = "tmp/temp-"+tempHex+"-contents.prkey";
+        signedFilenamePEM = "tmp/temp-"+tempHex+"-contents.pem.signed";
+        signedFilenameDER = "tmp/temp-"+tempHex+"-contents.der.signed";
     }
 
     @Override
@@ -58,6 +67,7 @@ public class Signable implements Dumpable {
 
     public void setContents(String contents) {
         this.contents = contents;
+        FileWriter.write(contents, contentsFilename);
     }
 
     public String getContents() {
@@ -69,6 +79,10 @@ public class Signable implements Dumpable {
     }
 
     public void setCertSigner(Certificate certSigner) {
+        if (certSigner != null) {
+            String blob = certSigner.getBlob();
+            FileWriter.write(blob, signerFilename);
+        }
         this.certSigner = certSigner;
     }
 
@@ -77,6 +91,10 @@ public class Signable implements Dumpable {
     }
 
     public void setPrivateKeySigner(PrivateKey privateKeySigner) {
+        if (privateKeySigner != null) {
+            String blob = privateKeySigner.dumpPEM();
+            FileWriter.write(blob, privateKeyFilename);
+        }
         this.privateKeySigner = privateKeySigner;
     }
 
@@ -92,12 +110,74 @@ public class Signable implements Dumpable {
         return getFilename(true);
     }
 
+    public void setSignedFilenamePEM(String signedFilenamePEM) {
+        this.signedFilenamePEM = signedFilenamePEM;
+    }
+
+    public String getSignedFilenamePEM() {
+        return signedFilenamePEM;
+    }
+
+    public String getSignedFilenameDER() {
+        return signedFilenameDER;
+    }
+
+    public String getContentsFilename() {
+        return contentsFilename;
+    }
+
+    public void setContentsFilename(String contentsFilename) {
+        this.contentsFilename = contentsFilename;
+    }
+
+    public String getSignerFilename() {
+        return signerFilename;
+    }
+
+    public void setSignerFilename(String signerFilename) {
+        this.signerFilename = signerFilename;
+    }
+
+    public String getPrivateKeyFilename() {
+        return privateKeyFilename;
+    }
+
+    public void setPrivateKeyFilename(String privateKeyFilename) {
+        this.privateKeyFilename = privateKeyFilename;
+    }
+
     public void setType(FileType type) {
         this.type = type;
     }
 
     public FileType getType() {
         return type;
+    }
+
+    public void setData(String data) {
+        if (data != null) {
+            FileWriter.write(data, signedFilenamePEM);
+        }
+        signedDataPEM = data;
+        isSigned = checkSigned();
+    }
+
+    public void setData(byte[] data) {
+        if (data != null) {
+            try {
+                FileOutputStream fos = new FileOutputStream(contentsFilename);
+                fos.write(data);
+                fos.close();
+            } catch (IOException e) {
+                Logger.error(TAG, "Error while setting the data for the signable: "+e);
+            }
+        }
+        signedDataDER = data;
+        isSigned = checkSigned();
+    }
+
+    private boolean checkSigned() {
+        return signedDataPEM != null && !signedDataPEM.isEmpty() && signedDataDER != null && signedDataDER.length != 0;
     }
 
     public String getFilename(boolean fullFilename) {
@@ -218,7 +298,7 @@ public class Signable implements Dumpable {
         }
         addTempFile(tempKey);
 
-        signedFilename = "temp-"+getFilename(false)+".signed";
+        signedFilenamePEM = "temp-"+getFilename(false)+".signed";
 
         /**
          * How would we sign the contents?
@@ -230,11 +310,11 @@ public class Signable implements Dumpable {
          * openssl cms -sign -md sha1 -binary -in data.txt -outform der -out signed.data -signer test-signer.pem -inkey test-key.key
          * */
 
-        String[] args = {"openssl", "cms", "-sign", "-md", "sha1", "-binary", "-in", tempRawData.getAbsolutePath(), "-out", signedFilename,
+        String[] args = {"openssl", "cms", "-sign", "-md", "sha1", "-binary", "-in", tempRawData.getAbsolutePath(), "-out", signedFilenamePEM,
                 "-outform", "DER", "-signer", tempSignerBlob.getAbsolutePath(), "-inkey", tempKey.getAbsolutePath()};
 
         args = new String[] {"openssl", "cms", "-sign", "-md", "sha1", "-binary", "-in", tempRawData.getPath(), "-outform", "PEM",
-                "-out", signedFilename, "-signer", tempSignerBlob.getPath(), "-inkey", tempKey.getPath()};
+                "-out", signedFilenamePEM, "-signer", tempSignerBlob.getPath(), "-inkey", tempKey.getPath()};
 
         Logger.debug(TAG, "Executing '"+BashReader.toSingleString(args)+"'");
         BashReader bashReader = BashReader.read(args);
@@ -245,7 +325,7 @@ public class Signable implements Dumpable {
             throw new SignatureException("The command \"" + BashReader.toSingleString(args) + "\" failed - " + bashReader.getOutput() + " ("+bashReader.getExitValue()+")");
         }
 
-        args = new String[] {"openssl", "asn1parse", "-inform", "PEM", "-in", signedFilename};
+        args = new String[] {"openssl", "asn1parse", "-inform", "PEM", "-in", signedFilenamePEM};
         Logger.debug(TAG, "Executing '"+BashReader.toSingleString(args)+"'");
         BashReader br = BashReader.read(args);
         if (br == null || br.getExitValue() != 0) {
@@ -256,9 +336,9 @@ public class Signable implements Dumpable {
         }
 
         // Now we have a file with DER signed data.
-        this.signedDataDER = BashReader.toSingleString(FileReader.getLines(signedFilename)).trim().getBytes();
+        this.signedDataDER = BashReader.toSingleString(FileReader.getLines(signedFilenamePEM)).trim().getBytes();
 
-//        args = new String[]{"openssl", "cms", "-sign", "-binary", "-outform", "DER", "-in", tempRawData.getAbsolutePath(), "-out", signedFilename,
+//        args = new String[]{"openssl", "cms", "-sign", "-binary", "-outform", "DER", "-in", tempRawData.getAbsolutePath(), "-out", signedFilenamePEM,
 //                "-signer", tempSignerBlob.getAbsolutePath(), "-inkey", tempKey.getAbsolutePath()};
 
 //        bashReader = BashReader.read(args);
@@ -270,7 +350,7 @@ public class Signable implements Dumpable {
 //        }
 
         // Now we have a file with PEM signed data.
-        this.signedDataPEM = BashReader.toSingleString(FileReader.getLines(signedFilename)).trim();
+        this.signedDataPEM = BashReader.toSingleString(FileReader.getLines(signedFilenamePEM)).trim();
         this.isSigned = true;
 
 //        if (cleanTempFiles()) {
@@ -287,9 +367,9 @@ public class Signable implements Dumpable {
             throw new SignatureException("You need to sign the data first by calling "+ TAG +".sign()");
         }
         // Locate the signature
-        File tempSigned = new File(signedFilename);
+        File tempSigned = new File(signedFilenamePEM);
         FileWriter.write(this.getDERSignedDataAsString(), tempSigned.getPath());
-        String[] args = {"openssl", "asn1parse", "-inform", "PEM", "-in", signedFilename};
+        String[] args = {"openssl", "asn1parse", "-inform", "PEM", "-in", signedFilenamePEM};
         BashReader br = BashReader.read(args);
         if (br == null || br.getExitValue() != 0) {
             if (br == null) {
@@ -481,5 +561,10 @@ public class Signable implements Dumpable {
         Logger.info(getClass(), "Hexdump2: "+sha1sumOutput, false);
 
         return hexdump.equals(sha1sumOutput) ? 0 : 1;
+    }
+
+    public boolean clean() {
+        return new File(contentsFilename).delete() && new File(signedFilenamePEM).delete()
+                && new File(privateKeyFilename).delete();
     }
 }
