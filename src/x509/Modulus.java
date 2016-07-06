@@ -54,6 +54,7 @@ public final class Modulus {
         String[] args = {"openssl", "rsa", "-noout", "-modulus", "-in", temp.getPath()};
         BashReader br = BashReader.read(args);
         if (br == null) {
+            Logger.debug("Modulus", "Attempt 1 for RSA failed (null).");
             args = new String[]{"openssl", "dsa", "-noout", "-modulus", "-in", temp.getPath()};
             br = BashReader.read(args);
             if (br == null) {
@@ -62,6 +63,7 @@ public final class Modulus {
             }
         }
         if (br.getExitValue() != 0) {
+            Logger.warn("Modulus", "Attempt 2 for RSA failed (errno "+br.getExitValue()+": "+br.getErrorMessage().trim()+")");
             args = new String[]{"openssl", "dsa", "-noout", "-modulus", "-in", temp.getPath()};
             br = BashReader.read(args);
             if (br == null) {

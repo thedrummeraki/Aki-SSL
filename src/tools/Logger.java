@@ -109,4 +109,12 @@ public final class Logger {
     public static ArrayList<String> getLogHistory() {
         return FileReader.getLines(LOG_PATH);
     }
+
+    public static void printOut(Object object) {
+        System.out.println(object);
+    }
+
+    public static void errorOut(Object object) {
+        System.err.println(object);
+    }
 }

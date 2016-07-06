@@ -1,12 +1,9 @@
 package pkcs7;
 
-import attributes.AttributeSet;
 import tools.BashReader;
 import tools.FileReader;
 import tools.FileWriter;
 import tools.Logger;
-import utils.Hexdump;
-import utils.SignUtils;
 import utils.VerifyUtils;
 import x509.*;
 
@@ -14,10 +11,7 @@ import x509.*;
  * Created by aakintol on 28/06/16.
  */
 
-import javax.swing.*;
 import java.io.File;
-import java.io.IOException;
-import java.util.ArrayList;
 
 import static x509.FileType.PEM;
 
@@ -208,17 +202,30 @@ public class PKCS7 extends Signable {
         } catch (Exception e) {
             load = null;
         }
-        Logger.debug("keygen: "+VerifyUtils.generateKey("rsa", 2048, new File("out.key"), new File("out.cert"), signable, load));
 
-        signable.setContents("valid contents.");
-        Logger.debug("sign: "+SignUtils.execOpenSSLCMSSign("sha1", true, false, false, signable));
-        Logger.debug("signed? "+signable.isSigned());
-        Logger.debug("locate sig pem: "+VerifyUtils.locateSignature("PEM", signable));
-        Logger.debug("locate sig der: "+VerifyUtils.locateSignature("DER", signable));
-        Hexdump hexReceiver = new Hexdump();
-        Logger.debug("hexdump: "+VerifyUtils.performHexdump("hexdump", hexReceiver));
-        Logger.debug("hexdump result: "+hexReceiver.getDump());
-        Logger.debug("pub key extraction: "+VerifyUtils.extractPublicKeyFromCertificate("pem", signable));
+        signable.setContents(rawData);
+        Logger.debug("set priv key + cert: "+VerifyUtils.setKeyAndSigner("test-key.key", "test-signer.pem", signable));
+        signable.sign(null, null, null);
+        Logger.debug("signed data: "+signable.getSignedDataPEM());
+
+//        Logger.printOut(signable.getCertSigner().getBlob());
+//        Logger.printOut(new String(signable.getPrivateKeySigner().dumpDER()));
+//        Logger.printOut(signable.getPrivateKeySigner().dumpPEM());
+
+//        Logger.debug("keygen: "+VerifyUtils.generateKey("rsa", 2048, new File("res/out.key"), new File("res/out.cert"), signable, load));
+//
+//        signable.setContents("valid contents.");
+//        Logger.debug("sign: "+SignUtils.execOpenSSLCMSSign("sha1", true, false, false, signable));
+//        Logger.debug("signed? "+signable.isSigned());
+//        Logger.debug("locate sig pem: "+VerifyUtils.locateSignature("PEM", signable));
+//        Logger.debug("locate sig der: "+VerifyUtils.locateSignature("DER", signable));
+//        Logger.debug("pub key extraction: "+VerifyUtils.extractPublicKeyFromCertificate("pem", signable));
+//        Logger.debug("asn1parse: "+SignUtils.execOpenSSLASN1Parse("DER", signable, false));
+//        Logger.debug("extract rsa bin: "+VerifyUtils.extractBinaryRSAEncryptedHash("sha256", signable));
+//        Hexdump hexReceiver = new Hexdump();
+//        Logger.debug("hexdump: "+VerifyUtils.performHexdump("res/signed-sha256.bin", hexReceiver));
+//        Logger.debug("hexdump result: "+hexReceiver.getDump());
+//        Logger.debug("sig verif: "+VerifyUtils.verifySignature("res/signed-sha256.bin", "verified256.bin", signable));
 
 //        VerifyUtils.locateSignature("PEM", signable);
 //        try {
@@ -227,6 +234,13 @@ public class PKCS7 extends Signable {
 //        } catch (CertificateException e) {
 //            e.printStackTrace();
 //        }
+
+        try {
+            Thread.sleep(5000);
+            BashReader.read("rm", "-rf", "tmp/");
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
 
 //        BashReader br = BashReader.read("openssl req -key out.key -new -x509 -days 365 -out out.cert -subj \"/CN=cbnca/C=CA/L=Ottawa\"");
 //

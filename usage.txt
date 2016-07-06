@@ -1,0 +1,4 @@
+Usage: java Communicator [option] [-suboptions].
+
+List of [options]:
+    sign (-in data.txt -signer signer.crt -inkey -signer.key -out output.txt -format [PEM (default) or DER])

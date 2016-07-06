@@ -78,7 +78,7 @@ public class Certificate implements Dumpable {
         this.publicKey = publicKey;
     }
 
-    String getPublicKeyFilename() {
+    public String getPublicKeyFilename() {
         return publicKeyFilename;
     }
 
@@ -161,6 +161,15 @@ public class Certificate implements Dumpable {
         return filename;
     }
 
+    public String getModulus() {
+        File tempCert = new File("tmp/temp-certif.cert");
+        if (!FileWriter.write(getBlob(), tempCert.getPath())) {
+            Logger.error("Certificate", "Couldn't write the certificate to a temporary file.");
+            return null;
+        }
+        return Modulus.get(tempCert, true);
+    }
+
     @Override
     public byte[] dumpDER() {
         // Convert the blob to a DER contents
@@ -177,8 +186,8 @@ public class Certificate implements Dumpable {
 
     private void writeToFilename() {
         String du = FileWriter.dumpFilename(10, true, ".pem");
-        filename = "tmp/cert-"+du;
-        publicKeyFilename = "tmp/cert-pubkey-"+du;
+        if (filename == null) filename = "tmp/cert-"+du;
+        if (publicKeyFilename == null) publicKeyFilename = "tmp/cert-pubkey-"+du;
         FileWriter.write(this.blob, filename);
     }
 

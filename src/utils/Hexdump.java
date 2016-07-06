@@ -30,8 +30,8 @@ public final class Hexdump {
                 isNumber = false;
             }
             if (isNumber) continue;
-            boolean isLetter = c >= 'A' && c <= 'Z';
-            if (!isLetter) {
+            boolean isHexLetter = c >= 'A' && c <= 'F';
+            if (!isHexLetter) {
                 return false;
             }
         }
@@ -39,7 +39,7 @@ public final class Hexdump {
     }
 
     public String getDump() {
-        return dump;
+        return dump.toUpperCase();
     }
 
     public boolean isEmpty() {

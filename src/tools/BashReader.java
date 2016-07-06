@@ -2,10 +2,7 @@ package tools;
 
 import org.omg.PortableInterceptor.INACTIVE;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.util.ArrayList;
 
 /**
@@ -17,11 +14,13 @@ public final class BashReader {
     private String output;
     private int exitValue;
     private String command;
+    private String errorMessage;
 
-    private BashReader(ArrayList<String> lines, String output, int exitValue) {
+    private BashReader(ArrayList<String> lines, String output, String error, int exitValue) {
         this.lines = lines;
         this.output = output;
         this.exitValue = exitValue;
+        this.errorMessage = error;
     }
 
     public ArrayList<String> getLines() {
@@ -41,6 +40,10 @@ public final class BashReader {
 
     public int getExitValue() {
         return exitValue;
+    }
+
+    public String getErrorMessage() {
+        return errorMessage;
     }
 
     public BashReader setCommand(String command) {
@@ -93,7 +96,18 @@ public final class BashReader {
         }
 
         process.waitFor();
-        BashReader bre = new BashReader(output, sb.toString(), process.exitValue());
+        InputStream errorStream = process.getErrorStream();
+        final int bufferSize = 1024;
+        final char[] buffer = new char[bufferSize];
+        final StringBuilder out = new StringBuilder();
+        Reader in = new InputStreamReader(errorStream, "UTF-8");
+        for (;;) {
+            int rsz = in.read(buffer, 0, buffer.length);
+            if (rsz < 0)
+                break;
+            out.append(buffer, 0, rsz);
+        }
+        BashReader bre = new BashReader(output, sb.toString(), out.toString(), process.exitValue());
         return bre.setCommand(command);
     }
 
@@ -114,7 +128,18 @@ public final class BashReader {
         }
 
         process.waitFor();
-        BashReader bre = new BashReader(output, sb.toString(), process.exitValue());
+        InputStream errorStream = process.getErrorStream();
+        final int bufferSize = 1024;
+        final char[] buffer = new char[bufferSize];
+        final StringBuilder out = new StringBuilder();
+        Reader in = new InputStreamReader(errorStream, "UTF-8");
+        for (;;) {
+            int rsz = in.read(buffer, 0, buffer.length);
+            if (rsz < 0)
+                break;
+            out.append(buffer, 0, rsz);
+        }
+        BashReader bre = new BashReader(output, sb.toString(), out.toString(), process.exitValue());
         return bre.setCommand(toSingleString(command));
     }
 

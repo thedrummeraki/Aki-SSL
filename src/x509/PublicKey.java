@@ -25,7 +25,11 @@ public class PublicKey extends Key {
     }
 
     void setPEMContents(Certificate certificate) {
-        this.pemContents = BashReader.toSingleString(true, FileReader.getLines(certificate.getPublicKeyFilename()));
+        String publicKeyFilename = certificate.getPublicKeyFilename();
+        if (publicKeyFilename == null) {
+            return;
+        }
+        this.pemContents = BashReader.toSingleString(true, FileReader.getLines(publicKeyFilename));
     }
 
     public String getPEMContents() {

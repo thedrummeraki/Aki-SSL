@@ -116,6 +116,15 @@ public class PrivateKey extends Key {
         }
     }
 
+    public String getModulus() {
+        File tempThis = new File("tmp/temp-privKey.key");
+        if (!FileWriter.write((pemContents == null ? this.dumpPEM(subject) : pemContents), tempThis.getPath())) {
+            Logger.error("PrivateKey", "Couldn't write the private key to a temporary file.");
+            return null;
+        }
+        return Modulus.get(dumpPEM(), false);
+    }
+
     public boolean doCheck(Certificate certificate) {
         try {
             check(certificate);

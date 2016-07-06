@@ -6,11 +6,10 @@ import tools.Logger;
 import x509.*;
 
 import java.io.File;
+import java.util.ArrayList;
 
-import static tools.Logger.info;
+import static tools.Logger.*;
 import static utils.Constants.*;
-import static tools.Logger.debug;
-import static tools.Logger.error;
 
 /**
  * Created by aakintol on 05/07/16.
@@ -19,6 +18,7 @@ public final class VerifyUtils {
 
     static {
         TAG = VerifyUtils.class.getSimpleName();
+        ASN1PARSE_OUTPUT = new ArrayList<>();
     }
 
     /**
@@ -40,6 +40,7 @@ public final class VerifyUtils {
 
     private VerifyUtils() {}
 
+    /* OK */
     private static boolean catchNullInOneOf(Object... objects) {
         for (Object o : objects) {
             if (o == null)
@@ -48,10 +49,12 @@ public final class VerifyUtils {
         return true;
     }
 
+    /* OK */
     public static boolean check(Signable signable) {
         return checkSignableAndIfSigned(signable) == 0;
     }
 
+    /* OK */
     public static int checkSignableAndIfSigned(Signable signable) {
         if (SignUtils.check(signable)) {
             if (signable.isSigned()) {
@@ -63,7 +66,6 @@ public final class VerifyUtils {
 
     /* OK */
     public static int generateKey(String alg, int bits, File keyOut, File certOut, Signable signable, Subject subject) {
-        debug(TAG, "Generating Private Key.");
         if (!catchNullInOneOf(alg, keyOut, certOut, signable)) {
             error(TAG, "Null object caught.");
             return NULL_OBJECT_ERROR;
@@ -80,8 +82,7 @@ public final class VerifyUtils {
             args = new String[]{"openssl", "req", "-nodes", "-newkey", String.format("%s:%s", alg,bits), "-keyout", keyout};
         }
 
-        String command = BashReader.toSingleString(args);
-        debug(TAG, "Execution 1) Arguments: "+ command);
+//        String command = BashReader.toSingleString(args);
 
         BashReader br = BashReader.read(args);
         if (br == null) {
@@ -90,8 +91,6 @@ public final class VerifyUtils {
         }
 
         int exitValue = br.getExitValue(); //PythonBashCaller.call(args);
-        debug(TAG, "Execution 1) Exit value: "+ exitValue);
-
 
         if (isValidSubject) {
             args = new String[] {"openssl", "req", "-key", keyout, "-new", "-x509", "-days", "365", "-out", out, "-subj", subject.getRawString()};
@@ -99,8 +98,7 @@ public final class VerifyUtils {
             args = new String[] {"openssl", "req", "-key", keyout, "-new", "-x509", "-days", "365", "-out", out};
         }
 
-        command = BashReader.toSingleString(args);
-        debug(TAG, "Execution 2) Arguments: "+ command);
+//        command = BashReader.toSingleString(args);
 
 //        exitValue = PythonBashCaller.call(args);
 
@@ -109,11 +107,6 @@ public final class VerifyUtils {
             error(TAG, "Null BashReader object caught.");
             return NULL_OBJECT_RESULT_ERROR;
         }
-        debug(TAG, "Execution 2) Exit value: "+ exitValue);
-
-        exitValue = br.getExitValue();
-
-        System.out.println(br.getOutput());
 
 //        if (exitValue != 0) {
 //            error(TAG, "Non zero exit value: "+ exitValue);
@@ -140,6 +133,11 @@ public final class VerifyUtils {
         return 0;
     }
 
+
+    public static int setKeyAndSigner(String privateKey, String certificate, Signable signable) {
+        return setKeyAndSigner(new File(privateKey), new File(certificate), signable);
+    }
+
     /* OK */
     public static int setKeyAndSigner(File privateKey, File certificate, Signable signable) {
         if (!catchNullInOneOf(privateKey, certificate, signable)) {
@@ -160,7 +158,6 @@ public final class VerifyUtils {
 
     /* OK */
     public static int locateSignature(String inform, Signable signable) {
-        debug(TAG, "Locating the signature");
         if (!check(signable)) {
             error(TAG, "Invalid Signable.");
             return CHECK_SIGNABLE_INVALID_OR_NOT_SIGNED_ERROR;
@@ -171,12 +168,9 @@ public final class VerifyUtils {
             return CHECK_SIGNABLE_INVALID_OR_NOT_SIGNED_ERROR;
         }
 
-        debug(TAG, "The signable object is valid.");
-
         String in = inform.equalsIgnoreCase("DER") ? signable.getSignedFilenameDER() : signable.getSignedFilenamePEM();
         String[] args = {"openssl", "asn1parse", "-inform", inform, "-in", in};
 
-        debug(TAG, "Execution: "+BashReader.toSingleString(false, args));
         BashReader br = BashReader.read(args);
         if (br == null) {
             error(TAG, "Null BashReader object caught.");
@@ -186,27 +180,89 @@ public final class VerifyUtils {
         return br.getExitValue();
     }
 
-    public static int extractBinaryRSAEncryptedHash(File signatureOutput, Signable signable) {
-        if (!catchNullInOneOf(signable, signatureOutput)) {
+    /* OK */
+    public static int extractBinaryRSAEncryptedHash(String hashAlg, Signable signable) {
+        if (!catchNullInOneOf(signable)) {
             return NULL_OBJECT_ERROR;
         }
         if (!check(signable)) {
             return CHECK_SIGNABLE_INVALID_OR_NOT_SIGNED_ERROR;
         }
 
-        return 0;
+        if (ASN1PARSE_OUTPUT.isEmpty()) {
+            error(TAG, "You must successfully execute SignUtils.execOpemSSLASN1Parse(String,Signable,boolean) " +
+                    "before extracting the binary RSA encryted hash.");
+            return EMPTY_LIST_ERROR;
+        }
+
+        // Extract the binary RSA encrypted hash
+        int offset, header, length;
+        File ddOfFile = new File("signed-"+hashAlg+".bin");
+        String lastLine = ASN1PARSE_OUTPUT.get(ASN1PARSE_OUTPUT.size()-1);
+        /**
+         * The last line should look like something like this:
+         * >>> 1245:d=5  hl=4 l= 256 prim: OCTET STRING      [HEX
+         * We need:
+         *  > 1245 as the offset
+         *  > 4 as the header
+         *  > 256 as the length
+         * */
+
+        // Get the index of the colon and get the trimmed string before that: that is the offset
+        // Get the index of the colon and get the trimmed string before that: that is the offset
+        int index = lastLine.indexOf(":");
+        String s = lastLine.substring(1, index);
+        offset = Integer.parseInt(s);
+
+        // Get the index of "hl=": add numbers between "=" and the next letter: this is the header
+        String toFind = "hl=";
+        index = lastLine.indexOf(toFind)+toFind.length();
+        char current = lastLine.charAt(index);
+        s = "";
+        for (int i = index; current >= 48 && current <= 57; i++) {
+            current = lastLine.charAt(i);
+            s += current;
+        }
+        s = s.trim();
+        header = Integer.parseInt(s);
+
+        // Get the index of "l= ": add numbers between " " and the next letter: here is the length
+        toFind = "l= ";
+        index = lastLine.indexOf(toFind)+toFind.length();
+        current = lastLine.charAt(index);
+        s = "";
+        for (int i = index; current >= 48 && current <= 57; i++) {
+            current = lastLine.charAt(i);
+            s += current;
+        }
+        s = s.trim();
+        length = Integer.parseInt(s);
+
+        String in = signable.getSignedFilenameDER();
+
+        Object[] oargs = new Object[] {"python", "scripts/dder.py", "-in", in, "-out", ddOfFile.getPath(),
+                "-bs", 1, "-l", offset, "-h", header, "-c", length};
+
+        BashReader br = BashReader.read(oargs);
+        if (br == null) {
+            return NULL_OBJECT_RESULT_ERROR;
+        }
+
+        return br.getExitValue();
     }
 
+    /* OK */
     public static int performHexdump(String path, Hexdump hexReceiver) {
         return performHexdump(new File(path), hexReceiver);
     }
 
+    /* OK */
     public static int performHexdump(File file, Hexdump hexReceiver) {
         if (file == null) {
             return NULL_OBJECT_ERROR;
         }
 
-        String[] args = {"python", "hexdump", "-in", file.getPath()};
+        String[] args = {"python", "scripts/hexdump", "-in", file.getPath()};
         BashReader br = BashReader.read(args);
 
         if (br == null) {
@@ -216,10 +272,15 @@ public final class VerifyUtils {
         if (hexReceiver == null || !hexReceiver.isEmpty()) {
             hexReceiver = new Hexdump();
         }
-        hexReceiver.setDump(br.getOutput());
+        hexReceiver.setDump(br.getOutput().trim());
+        if (br.getExitValue() != 0) {
+            warn(TAG, BashReader.toSingleString(args));
+            warn(TAG, br.getErrorMessage().isEmpty() ? "Error with exit code ("+br.getExitValue()+")" : br.getErrorMessage());
+        }
         return br.getExitValue();
     }
 
+    /* OK */
     public static int extractPublicKeyFromCertificate(String inform, Signable signable) {
         if (!check(signable)) {
             return CHECK_SIGNABLE_INVALID_OR_NOT_SIGNED_ERROR;
@@ -227,30 +288,45 @@ public final class VerifyUtils {
         return extractPublicKeyFromCertificate(inform, signable.getCertSigner());
     }
 
+    /* OK */
     public static int extractPublicKeyFromCertificate(String inform, Certificate certificate) {
         if (!catchNullInOneOf(inform, certificate)) {
             return NULL_OBJECT_ERROR;
         }
 
         PublicKey publicKey = certificate.fetchPublicKey();
-        if (publicKey == null) {
-            return NULL_OBJECT_RESULT_ERROR;
-        }
-
-        return 0;
+        return publicKey != null ? 0 : NULL_OBJECT_RESULT_ERROR;
     }
 
-    public static int verifySignature(PublicKey publicKey, File signedBinIn, File verifiedBinOut) {
-        if (!catchNullInOneOf(publicKey, signedBinIn, verifiedBinOut)) {
+
+    public static int verifySignature(String signedBinIn, String verifiedBinOut, Signable signable) {
+        return verifySignature(new File(signedBinIn), new File(verifiedBinOut), signable);
+    }
+
+
+    public static int verifySignature(File signedBinIn, File verifiedBinOut, Signable signable) {
+        if (!catchNullInOneOf(signable, signable.getCertSigner(), signedBinIn, verifiedBinOut)) {
             return NULL_OBJECT_ERROR;
         }
 
-        return 0;
+        signable.getCertSigner().fetchPublicKey();
+        String inkey = signable.getCertSigner().getPublicKeyFilename();
+        String in = signedBinIn.getPath();
+        String out = verifiedBinOut.getPath();
+
+        String[] args = {"python", "scripts/sigver.py", "-in", in, "-inkey", inkey, "-out", out};
+        BashReader br = BashReader.read(args);
+        if (br == null) {
+            return NULL_OBJECT_ERROR;
+        }
+
+        return br.getExitValue();
     }
 
     /**
      * Variables
      * */
     private static final String TAG;
+    static final ArrayList<String> ASN1PARSE_OUTPUT;
 
 }

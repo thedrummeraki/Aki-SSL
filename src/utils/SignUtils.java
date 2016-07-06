@@ -34,6 +34,7 @@ public final class SignUtils {
 
     private SignUtils() {}
 
+    /* OK */
     private static boolean catchNullInOneOf(Object... objects) {
         for (Object o : objects) {
             if (o == null)
@@ -42,23 +43,29 @@ public final class SignUtils {
         return true;
     }
 
+    /* OK */
     public static boolean check(Signable signable) {
-        if (signable == null) {
-            Logger.debug("2 for 0");
-        }
-        if (signable.getCertSigner() == null) {
-            Logger.debug("2 for 1");
-        }
-        if (signable.getPrivateKeySigner() == null) {
-            Logger.debug("2 for 2");
-        }
-        if (!signable.getPrivateKeySigner().doCheck(signable.getCertSigner())) {
-            Logger.debug("2 for 3");
-        }
+//        if (signable == null) {
+//            Logger.debug("2 for 0");
+//            return false;
+//        }
+//        if (signable.getCertSigner() == null) {
+//            Logger.debug("2 for 1");
+//            return false;
+//        }
+//        if (signable.getPrivateKeySigner() == null) {
+//            Logger.debug("2 for 2");
+//            return false;
+//        }
+//        if (!signable.getPrivateKeySigner().doCheck(signable.getCertSigner())) {
+//            Logger.debug("2 for 3");
+//            return false;
+//        }
         return signable != null && signable.getCertSigner() != null && signable.getPrivateKeySigner() != null &&
                 signable.getPrivateKeySigner().doCheck(signable.getCertSigner()) && signable.getContents() != null;
     }
 
+    /* OK */
     public static int checkCertificateAndPrivateKey(Certificate certificate, PrivateKey privateKey) {
         if (certificate == null || privateKey == null) {
             return NULL_OBJECT_ERROR;
@@ -71,6 +78,7 @@ public final class SignUtils {
         return 0;
     }
 
+    /* OK */
     public static int writeRawData(File outFile, Signable signable) {
         if (!catchNullInOneOf(outFile, signable, signable.getContents())) {
             return NULL_OBJECT_ERROR;
@@ -81,6 +89,7 @@ public final class SignUtils {
         return 0;
     }
 
+    /* OK */
     public static int writeSignerBlob(File outFile, Signable signable) {
         if (!catchNullInOneOf(outFile, signable, signable.getCertSigner()) || !check(signable)) {
             return NULL_OBJECT_ERROR;
@@ -91,6 +100,7 @@ public final class SignUtils {
         return 0;
     }
 
+    /* OK */
     public static int writePrivateKey(File outFile, Signable signable) {
         if (!catchNullInOneOf(outFile, signable, signable.getPrivateKeySigner()) || !check(signable)) {
             return NULL_OBJECT_ERROR;
@@ -101,6 +111,7 @@ public final class SignUtils {
         return 0;
     }
 
+    /* OK */
     public static int setSignedFilename(File file, Signable signable) {
         if (!catchNullInOneOf(file, signable)) {
             return NULL_OBJECT_ERROR;
@@ -109,14 +120,17 @@ public final class SignUtils {
         return 0;
     }
 
+    /* OK */
     public static int execOpenSSLCMSSign(String alg, Signable signable) {
         return execOpenSSLCMSSign(alg, true, false, false, signable);
     }
 
+    /* OK */
     public static int execOpenSSLCMSSign(String alg, boolean binary, Signable signable) {
         return execOpenSSLCMSSign(alg, binary, false, false, signable);
     }
 
+    /* OK */
     public static int execOpenSSLCMSSign(String alg, boolean binary, boolean noCerts, boolean noAttr, Signable signable) {
         if (!catchNullInOneOf(alg, signable)) {
             return NULL_OBJECT_ERROR;
@@ -132,7 +146,7 @@ public final class SignUtils {
         String outform = "PEM";
         String out = signable.getSignedFilenamePEM();
         String[] args = getCMSSignArgs(alg, binary, noCerts, noAttr, outform, in, out, inKey, signer);
-        Logger.debug(BashReader.toSingleString(false, args));
+//        Logger.debug(BashReader.toSingleString(false, args));
 
 
         BashReader br = BashReader.read(args);
@@ -144,7 +158,7 @@ public final class SignUtils {
         outform = "DER";
         out = signable.getSignedFilenameDER();
         args = getCMSSignArgs(alg, binary, noCerts, noAttr, outform, in, out, inKey, signer);
-        Logger.debug(BashReader.toSingleString(false, args));
+//        Logger.debug(BashReader.toSingleString(false, args));
 
         br = BashReader.read(args);
         if (br == null) {
@@ -158,6 +172,7 @@ public final class SignUtils {
         return br.getExitValue();
     }
 
+    /* OK */
     private static String[] getCMSSignArgs(String alg, boolean binary, boolean noCerts, boolean noAttr, String outform,
                                                 String in, String out, String inkey, String signer) {
         ArrayList<String> args = new ArrayList<>();
@@ -183,12 +198,17 @@ public final class SignUtils {
         return args.toArray(new String[0]);
     }
 
+    /* OK */
     public static int execOpenSSLASN1Parse(String inform, Signable signable, boolean showOutput) {
         if (!catchNullInOneOf(inform, signable)) {
             return NULL_OBJECT_ERROR;
         }
 
-        String in = signable.getContentsFilename() + ".signed";
+        if (!inform.equalsIgnoreCase("DER") && !inform.equalsIgnoreCase("PEM")) {
+            Logger.warn("Invalid inform: "+inform+". Setting inform to PEM by default.");
+            inform = "PEM";
+        }
+        String in = inform.equalsIgnoreCase("DER") ? signable.getSignedFilenameDER() : signable.getSignedFilenamePEM();
 
         String[] args = {"openssl", "asn1parse", "-inform", inform, "-in", in};
 
@@ -201,9 +221,12 @@ public final class SignUtils {
             Logger.info("SignUtils", "execOpenSSLASN1Parse - "+br.getOutput());
         }
 
+        VerifyUtils.ASN1PARSE_OUTPUT.addAll(br.getLines());
+
         return br.getExitValue();
     }
 
+    /* OK */
     public static int setSignedData(Signable signable) {
         if (!catchNullInOneOf(signable, PEM_SIGNED_DATA, DER_SIGNED_DATA)) {
             return NULL_OBJECT_ERROR;

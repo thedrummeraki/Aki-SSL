@@ -10,7 +10,12 @@ public final class Constants {
     /**
      * When a needed object is null in a function.
      * */
-    public static final int NULL_OBJECT_ERROR = 200;
+    public static final int NULL_OBJECT_ERROR = 201;
+
+    /**
+     * When a queried list is empty
+     * */
+    public static final int EMPTY_LIST_ERROR = 200;
 
     /**
      * When a created object is null during the function's execution.

@@ -3,8 +3,10 @@ package x509;
 import sun.misc.IOUtils;
 import tools.BashReader;
 import tools.FileReader;
+import tools.FileWriter;
 import tools.Logger;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 
@@ -107,12 +109,16 @@ public abstract class Key implements Dumpable {
         if (pemContents.startsWith("-----BEGIN PRIVATE KEY-----") && pemContents.endsWith("-----END PRIVATE KEY-----") ||
                 pemContents.startsWith("-----BEGIN RSA PRIVATE KEY-----") && pemContents.endsWith("-----END RSA PRIVATE KEY-----")) {
             String tempPEMFile = "tmp/pemtoder.pem";
+            FileWriter.write(pemContents, tempPEMFile);
             String tempDERFile = "tmp/keyout.der";
             String[] args = {"openssl", "rsa", "-in", tempPEMFile, "-out", tempDERFile, "-outform", "DER"};
-            try {
-                BashReader.readAndThrow(args);
-            } catch (Exception e) {
-                throw new CertificateException("Could not make the conversion -> " + e);
+            BashReader br = BashReader.read(args);
+
+            if (br == null) {
+                throw new CertificateException("Invalid command used to convert PEM to DER.");
+            }
+            if (br.getExitValue() != 0) {
+                throw new CertificateException(br.getErrorMessage().isEmpty() ? "PEM > DER error ("+br.getExitValue()+")" : br.getErrorMessage());
             }
 
             // Read the file without tools.FileReader

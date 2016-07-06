@@ -7,9 +7,14 @@ import tools.BashReader;
 import tools.FileReader;
 import tools.FileWriter;
 import tools.Logger;
+import utils.Constants;
+import utils.SignUtils;
+import utils.VerifyUtils;
 
 import java.io.*;
 import java.util.ArrayList;
+
+import static tools.Logger.*;
 
 /**
  * Created by aakintol on 28/06/16.
@@ -25,6 +30,7 @@ public class Signable implements Dumpable {
 
     protected boolean isSigned;
     private String contents;
+    private String sigAlg;
     private String signedDataPEM;
     private byte[] signedDataDER;
 
@@ -246,6 +252,48 @@ public class Signable implements Dumpable {
         return ok;
     }
 
+    public int sign(Certificate signer, PrivateKey privateKey, String sigAlg) {
+        info(TAG, "Signing the data...");
+        if (sigAlg == null || this.sigAlg == null) {
+            sigAlg = "sha256";
+        }
+        this.sigAlg = sigAlg;
+        /**
+         * The signature process is done with the following steps:
+         * - Check if the signable object is indeed signable (by checking its validity)
+         * -
+         * */
+        if (VerifyUtils.checkSignableAndIfSigned(this) == 0) {
+            return 0;
+        }
+
+        if (signer != null) setCertSigner(signer);
+        if (privateKey != null) setPrivateKeySigner(privateKey);
+
+        if (!SignUtils.check(this)) {
+            error(TAG, "Please make sure you have initialized the following:\n  - Some data to sign;\n  - The certificate signer;" +
+                    "\n  - Its private key.\nPlease make sure they match.");
+            return Constants.CHECK_SIGNABLE_INVALID_OR_NOT_SIGNED_ERROR;
+        }
+
+        int code = SignUtils.checkCertificateAndPrivateKey(this.certSigner, this.privateKeySigner);
+        if (code != 0) {
+            error(TAG, "Please make the sure the certificate and the private key match:" +
+                    "\nMOD PKey: "+this.privateKeySigner.getModulus()+"\nMOD Cert: "+this.privateKeySigner.getModulus());
+            return code;
+        }
+
+        code = SignUtils.execOpenSSLCMSSign(this.sigAlg, true, false, false, this);
+        if (code != 0) {
+            error(TAG, "Error while signing the data.");
+            return code;
+        }
+
+        SignUtils.setSignedData(this);
+        info(TAG, "Signing the data was successful.");
+        return 0;
+    }
+
     public boolean sign() throws CertificateException {
         Logger.debug(TAG, "Attempting to sign the "+getClass().getSimpleName());
         if (this.contents == null || this.contents.trim().isEmpty()) {
@@ -427,7 +475,8 @@ public class Signable implements Dumpable {
 //            args = new String[] {"dd", String.format("if=%s", tempSigned.getPath()), String.format("of=%s", ddOfFile.getPath()), "bs=1", "skip=$[",
 //                    Integer.toString(offset), "+", Integer.toString(header), "]", String.format("count=%s", length)};
 
-            Object[] oargs = new Object[] {"python", "dder.py", tempSigned.getPath(), ddOfFile.getPath(), 1, offset, header, length};
+            Object[] oargs = new Object[] {"python", "scripts/dder.py", "-in", tempSigned.getPath(), "-out", ddOfFile.getPath(),
+                    "-bs", 1, "-l", offset, "-h", header, "-c", length};
 
             br = BashReader.read(oargs);
             if (br == null || br.getExitValue() != 0) {
@@ -481,7 +530,7 @@ public class Signable implements Dumpable {
          * */
 
         // Verify the extracted signature (for Logging purposes).
-        args = new String[] {"python", "hexdump", "-in", ddOfFile.getPath()};
+        args = new String[] {"python", "scripts/hexdump", "-in", ddOfFile.getPath()};
         br = BashReader.read(args);
         if (br != null) {
             Logger.debug(TAG, "python hexdump output: "+br.getOutput());
@@ -564,7 +613,14 @@ public class Signable implements Dumpable {
     }
 
     public boolean clean() {
-        return new File(contentsFilename).delete() && new File(signedFilenamePEM).delete()
-                && new File(privateKeyFilename).delete();
+        ArrayList<File> files = new ArrayList<>();
+        files.add(new File(this.privateKeyFilename));
+        files.add(new File(this.filename));
+        files.add(new File(this.signedFilenameDER));
+        files.add(new File(this.signedFilenamePEM));
+        boolean ok = true;
+        for (File file : files)
+            if (!file.delete()) ok = false;
+        return ok;
     }
 }

@@ -5,10 +5,11 @@ args = sys.argv
 
 usage = '''
 
-    Usage: python %s -in infile.data [-out outfile.data] [-noout]
+    Usage: python %s -in infile.data [-out outfile.data] [-noout] [-up]
 
     Outfile is the file containing the output of the command.
     Add option -noout to avoid external output.
+    Add option -up to show the result as upper case letters.
 
 ''' % args[0]
 
@@ -31,6 +32,9 @@ if not path.exists(infile):
 
 with open(infile) as f:
     hexdump = f.read().encode('hex')
+
+if "-up" in args:
+    hexdump = hexdump.upper()
 
 if "-noout" not in args:
     print hexdump if len(hexdump) != 0 else "%s - Nothing to show." % args[0]
