@@ -1,5 +1,6 @@
 package aki.packages.x509;
 
+import aki.packages.pkcs7.PKCS7Exception;
 import aki.packages.utils.Constants;
 import aki.packages.utils.VerifyUtils;
 import attributes.Attribute;
@@ -193,7 +194,7 @@ public class Signable implements Dumpable {
         return isSigned;
     }
 
-    public AttributeSet getSignedAttributes() {
+    public AttributeSet getSignedAttributes() throws PKCS7Exception {
         return signedAttributes;
     }
 

@@ -105,7 +105,12 @@ public final class SCEPResponse {
             pkcs7.verifySignature(caCertificate);
         } catch (SignatureException e) {
             Logger.error(LOG_ID, "PKCS7 verification failed: "+e);
-            AttributeSet attributeSet = pkcs7.getSignedAttributes();
+            AttributeSet attributeSet;
+            try {
+                attributeSet = pkcs7.getSignedAttributes();
+            } catch (PKCS7Exception e1) {
+                return this.failureResponse(null, null, null, SCEP_FAILINFO_BADREQUEST);
+            }
             // Check if the keys are presents
             Attribute transactionIDAttr = attributeSet.getAttribute("transID");
             Attribute senderNonceAttr = attributeSet.getAttribute("senderNonce");

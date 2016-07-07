@@ -103,5 +103,4 @@ code = verify(
     ca_cert=open(cert_file).read() if cert_file is not None else None
 )
 
-
 sys.exit(code)
