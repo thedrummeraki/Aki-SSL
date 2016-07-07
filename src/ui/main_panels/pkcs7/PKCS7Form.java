@@ -4,11 +4,8 @@ import aki.packages.pkcs7.PKCS7;
 import aki.packages.pkcs7.PKCS7Exception;
 import aki.packages.tools.BashReader;
 import aki.packages.tools.FileReader;
+import aki.packages.x509.*;
 import ui.main_panels.HostPanel;
-import aki.packages.x509.Certificate;
-import aki.packages.x509.CertificateException;
-import aki.packages.x509.Modulus;
-import aki.packages.x509.PrivateKey;
 
 import javax.swing.*;
 import java.awt.*;
@@ -138,11 +135,11 @@ public class PKCS7Form implements HostPanel {
                     JOptionPane.showMessageDialog(parent, errorMessage, "Error while signing the PKCS7 message.", JOptionPane.ERROR_MESSAGE);
                     return;
                 }
-                PKCS7 pkcs7;
+                Signable pkcs7 = new Signable();
                 if (pkcs7File != null) {
-                    pkcs7 = new PKCS7(BashReader.toSingleString(FileReader.getLines(pkcs7File)), false);
+                    pkcs7.setContents(BashReader.toSingleString(FileReader.getLines(pkcs7File)));
                 } else {
-                    pkcs7 = new PKCS7(textArea1.getText().trim(), false);
+                    pkcs7.setContents(textArea1.getText().trim());
                 }
                 Certificate signer;
                 try {
@@ -158,7 +155,7 @@ public class PKCS7Form implements HostPanel {
                     pkcs7.setPrivateKeySigner(privateKey);
                     pkcs7.sign();
                     if (encryptAfterSigningCheckBox.isSelected()) {
-                        pkcs7.encrypt();
+//                        pkcs7.encrypt();
                     }
                 } catch (PKCS7Exception e) {
                     e.printStackTrace();
@@ -166,12 +163,13 @@ public class PKCS7Form implements HostPanel {
                     return;
                 } catch (CertificateException e) {
                     e.printStackTrace();
-                    JOptionPane.showMessageDialog(parent, "The private key is invalid.", "Error while signing the PKCS7 message.", JOptionPane.ERROR_MESSAGE);
+                    JOptionPane.showMessageDialog(parent, "The private key is invalid or it does't match with the certificate.",
+                            "Error while signing the PKCS7 message.", JOptionPane.ERROR_MESSAGE);
                     return;
                 }
                 if (encryptAfterSigningCheckBox.isSelected()) {
                     JOptionPane.showMessageDialog(parent, "The signing is complete! You can view the results on the right pane.");
-                    textArea2.setText(pkcs7.getEncryptedDataAsString());
+//                    textArea2.setText(pkcs7.getEncryptedDataAsString());
                 } else {
                     JOptionPane.showMessageDialog(parent, "The encryption is complete! You can view the results on the right pane.");
                     textArea2.setText(pkcs7.getDERSignedDataAsString());

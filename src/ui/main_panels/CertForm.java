@@ -38,7 +38,7 @@ public class CertForm implements HostPanel {
                 if (n == JFileChooser.APPROVE_OPTION) {
                     File file = fileChooser.getSelectedFile();
                     FileWriter.write(file.getParentFile().getAbsolutePath(), ".saved.txt", false);
-                    String lines = BashReader.toSingleString(FileReader.getLines(file.getPath()));
+                    String lines = BashReader.toSingleString(true, FileReader.getLines(file.getPath()));
                     textArea1.setText("");
                     textArea1.append(lines);
                 }

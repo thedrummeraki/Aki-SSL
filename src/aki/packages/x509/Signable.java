@@ -17,7 +17,7 @@ import java.util.ArrayList;
  */
 public class Signable implements Dumpable {
 
-    private static final String TAG = Signable.class.getSimpleName();
+    protected static final String TAG = Signable.class.getSimpleName();
     private Certificate certSigner;
     private PrivateKey privateKeySigner;
     private FileType type;

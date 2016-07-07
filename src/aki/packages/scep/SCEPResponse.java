@@ -77,8 +77,29 @@ public final class SCEPResponse {
     }
 
     private int pkcs7() {
+        /**
+         * Steps to pkcs7 pending response - STEP 0;
+         *
+         * - Get the certificate manager from the CA name
+         * - Return an error if the CA was not found.
+         * - Create a PKCS7 object from the message
+         * - Return an error if the enconding for the request is invalid
+         * - Verify the PKCS7's signature with the CA certificate
+         * - Return an error if this fails.
+         * - Get the signed attributes
+         * - Return an error is this fails.
+         * - Check if 'messageType' and 'senderNonce' are in the signed attributes
+         * - If not, return an error.
+         * - Handle the request from there...
+         * */
         LOG_ID = DEF_LOG_ID + ".pkcs7()";
-        PKCS7 pkcs7 = new PKCS7(message, true);
+
+        PKCS7 pkcs7;
+        try {
+            pkcs7 = new PKCS7(message, true);
+        } catch (PKCS7Exception e) {
+            return this.failureResponse(null, null, null, SCEP_FAILINFO_BADMESSAGECHECK);
+        }
 
         try {
             pkcs7.verifySignature(caCertificate);

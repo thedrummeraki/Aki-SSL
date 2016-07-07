@@ -15,21 +15,24 @@ import java.io.File;
 
 public class PKCS7 extends Signable {
 
+    private final String HEADER = "-----BEGIN PKCS7-----";
+    private final String FOOTER = "-----END PKCS7-----";
     private boolean isEnveloped;
     private boolean isEncrypted;
     private byte[] encryptedData;
     private Certificate certificate;
 
 
-    public PKCS7(String rawData, boolean addHeaders) {
+    public PKCS7(String rawData, boolean addHeaders) throws PKCS7Exception {
         String header = "";
         String footer = "";
         if (addHeaders) {
-            header = "-----BEGIN PKCS7-----";
-            footer = "-----END PKCS7-----";
+            header = HEADER;
+            footer = FOOTER;
         }
-        this.setContents(String.format("%s%s%s", header, rawData, footer));
+        this.setContents(String.format("%s\n%s%s", header, rawData, footer));
         this.setType(FileType.PEM);
+        this.checkContents();
     }
 
     public void setCertificate(String buff) throws CertificateException {
@@ -123,12 +126,53 @@ public class PKCS7 extends Signable {
         }
     }
 
-    public void verifySignature(Certificate caCert) throws PKCS7Exception {
+    public void verifySignature(Certificate caCert) throws SignatureException {
+        String[] args;
+        if (caCert != null) {
+            try {
+                Certificate.loadCertificateFromBuffer(caCert.getBlob());
+            } catch (CertificateException e) {
+                throw new SignatureException("Invalid certificate ("+e.getMessage()+")");
+            }
+            args = new String[] {"python", "scripts/pkcs7_verifyier.py", "-in", getContentsFilename(), "-ca", caCert.getFilename()};
+        } else {
+            args = new String[] {"python", "scripts/pkcs7_verifyier.py", "-in", getContentsFilename()};
+        }
+        BashReader br = BashReader.read(args);
+        if (br == null) {
+            throw new SignatureException("Invalid command.");
+        }
+        if (br.getExitValue() == 0) {
+            return;
+        }
+        throw new SignatureException("The signature verification has failed.");
+    }
 
+    private void checkContents() throws PKCS7Exception {
+        String contents = this.getContents();
+        if (contents == null) {
+            throw new PKCS7Exception();
+        }
+        if (!contents.startsWith(HEADER) || !contents.endsWith(FOOTER)) {
+            throw new PKCS7Exception("Header or/and footer missing.");
+        }
+        String in = getContentsFilename();
+        String[] args = {"openssl", "pkcs7", "-inform", "PEM", "-in", in, "-noout"};
+        BashReader br = BashReader.read(args);
+        if (br == null || br.getExitValue() != 0) {
+            String message;
+            if (br == null) {
+                message = "Error while cheking the PKCS7 data.";
+            } else {
+                message = br.getErrorMessage();
+            }
+            Logger.error(TAG, message + "\r\tfor "+getContents());
+            throw new PKCS7Exception(message);
+        }
     }
 
     public static void main(String[] args) {
-        String rawData = "-----BEGIN PKCS7-----\n" +
+        String rawData = /*"-----BEGIN PKCS7-----\n" +*/
                 "MIIGugYJKoZIhvcNAQcCoIIGqzCCBqcCAQExDjAMBggqhkiG9w0CBQUAMIIDIQYJ\n" +
                 "KoZIhvcNAQcBoIIDEgSCAw4wggMKBgkqhkiG9w0BBwOgggL7MIIC9wIBADGCAUow\n" +
                 "ggFGAgEAMC4wKTELMAkGA1UEChMCcWExGjAYBgNVBAMTEVN0VmluY2VudFFBQ0Ey\n" +
@@ -164,8 +208,19 @@ public class PKCS7 extends Signable {
                 "SAGG+EUBCQcxIhMgQzA2RjJFRjY4ODI3OTVCQ0M4Mjg5MTE5MTJGM0Y3MjgwDQYJ\n" +
                 "KoZIhvcNAQEBBQAEgYBYpGW/8dKMHnED09/pkqr2FYTBSlVTIqAIN0ECHt+BmNW3\n" +
                 "FhzL5AUEAaAcCf+fPuNgFUITOcM0YYGvzXD0vUrtrzfhSk2wFAU+olH/yYM+0mJ7\n" +
-                "ZgVL5zy55NHa7XsrcIVs576RGA6czEoetftYGRykS8zU6SOKFumC86ojkBKeYw==\n" +
-                "-----END PKCS7-----\n";
+                "ZgVL5zy55NHa7XsrcIVs576RGA6czEoetftYGRykS8zU6SOKFumC86ojkBKeYw==\n"/* +
+                "-----END PKCS7-----\n"*/;
+
+
+        try {
+            PKCS7 pkcs7 = new PKCS7(rawData, true);
+            Logger.printOut(pkcs7.getContentsFilename());
+        } catch (PKCS7Exception e) {
+            e.printStackTrace();
+        }
+
+
+
 //        rawData = BashReader.toSingleString(FileReader.getLines("/home/aakintol/Downloads/cbn_dsa-cert.pem"));
 //        Signable pkcs7 = new Signable();
 //        pkcs7.setContents(rawData);
@@ -193,18 +248,18 @@ public class PKCS7 extends Signable {
 //            System.out.println("HMMM.");
 //        }
 
-        Signable signable = new Signable();
-        Subject load;
-        try {
-            load = Subject.load("/C=CA/L=Ottawa/CN=cbnca");
-        } catch (Exception e) {
-            load = null;
-        }
-
-        signable.setContents(rawData);
-        Logger.debug("set priv key + cert: "+ VerifyUtils.setKeyAndSigner("test-key.key", "test-signer.pem", signable));
-        signable.sign(null, null, null);
-        Logger.debug("signed data: "+signable.getSignedDataPEM());
+//        Signable signable = new Signable();
+//        Subject load;
+//        try {
+//            load = Subject.load("/C=CA/L=Ottawa/CN=cbnca");
+//        } catch (Exception e) {
+//            load = null;
+//        }
+//
+//        signable.setContents(rawData);
+//        Logger.debug("set priv key + cert: "+ VerifyUtils.setKeyAndSigner("test-key.key", "test-signer.pem", signable));
+//        signable.sign(null, null, null);
+//        Logger.debug("signed data: "+signable.getSignedDataPEM());
 
 //        Logger.printOut(signable.getCertSigner().getBlob());
 //        Logger.printOut(new String(signable.getPrivateKeySigner().dumpDER()));
