@@ -91,6 +91,7 @@ public final class SCEPResponse {
          * - Check if 'messageType' and 'senderNonce' are in the signed attributes
          * - If not, return an error.
          * - Handle the request from there...
+         * OK
          * */
         LOG_ID = DEF_LOG_ID + ".pkcs7()";
 
