@@ -1,7 +1,7 @@
 package attributes;
 
-import tools.Logger;
-import x509.Signable;
+import aki.packages.tools.Logger;
+import aki.packages.x509.Signable;
 
 import java.util.ArrayList;
 

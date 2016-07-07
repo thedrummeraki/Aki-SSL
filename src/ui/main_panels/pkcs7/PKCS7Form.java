@@ -1,14 +1,14 @@
 package ui.main_panels.pkcs7;
 
-import pkcs7.PKCS7;
-import pkcs7.PKCS7Exception;
-import tools.BashReader;
-import tools.FileReader;
-import ui.HostPanel;
-import x509.Certificate;
-import x509.CertificateException;
-import x509.Modulus;
-import x509.PrivateKey;
+import aki.packages.pkcs7.PKCS7;
+import aki.packages.pkcs7.PKCS7Exception;
+import aki.packages.tools.BashReader;
+import aki.packages.tools.FileReader;
+import ui.main_panels.HostPanel;
+import aki.packages.x509.Certificate;
+import aki.packages.x509.CertificateException;
+import aki.packages.x509.Modulus;
+import aki.packages.x509.PrivateKey;
 
 import javax.swing.*;
 import java.awt.*;

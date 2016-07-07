@@ -1,8 +1,7 @@
 package attributes;
 
-import tools.Logger;
+import aki.packages.tools.Logger;
 
-import javax.smartcardio.ATR;
 import java.util.ArrayList;
 import java.util.Arrays;
 

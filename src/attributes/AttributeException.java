@@ -1,6 +1,6 @@
 package attributes;
 
-import x509.CertificateException;
+import aki.packages.x509.CertificateException;
 
 /**
  * Created by aakintol on 28/06/16.

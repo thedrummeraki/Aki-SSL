@@ -1,11 +1,10 @@
 package ui.main_panels;
 
-import tools.BashReader;
-import tools.FileReader;
-import tools.FileWriter;
-import tools.Logger;
-import ui.HostPanel;
-import x509.Certificate;
+import aki.packages.tools.BashReader;
+import aki.packages.tools.FileReader;
+import aki.packages.tools.FileWriter;
+import aki.packages.tools.Logger;
+import aki.packages.x509.Certificate;
 
 import javax.swing.*;
 import javax.swing.border.Border;
