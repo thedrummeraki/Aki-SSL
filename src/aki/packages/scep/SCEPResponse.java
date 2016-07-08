@@ -97,7 +97,7 @@ public final class SCEPResponse {
 
         PKCS7 pkcs7;
         try {
-            pkcs7 = new PKCS7(message, true);
+            pkcs7 = this.createPKCS7(message);
         } catch (PKCS7Exception e) {
             return this.failureResponse(null, null, null, SCEP_FAILINFO_BADMESSAGECHECK);
         }
@@ -189,6 +189,11 @@ public final class SCEPResponse {
     private String createSenderNonce() {
         SecureRandom random = new SecureRandom();
         return new BigInteger(16, random).toString(32);
+    }
+
+    private PKCS7 createPKCS7(String message) throws PKCS7Exception {
+        PKCS7 pkcs7 = new PKCS7(message, true);
+        return pkcs7;
     }
 
     public static int loadSCEPResponse(String caDump, String keyDump, String message, String ip, String output, String failFile, String pendingFile, String successFile) {

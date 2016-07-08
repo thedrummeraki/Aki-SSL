@@ -2,14 +2,12 @@ package aki.packages.scep;
 
 import aki.packages.tools.BashReader;
 import aki.packages.tools.Logger;
-import aki.packages.x509.CertificateException;
-import aki.packages.x509.PrivateKey;
+import aki.packages.utils.VerifyUtils;
+import aki.packages.x509.*;
 import aki.packages.tools.FileReader;
 import aki.packages.tools.FileWriter;
 
 import java.io.File;
-import aki.packages.x509.Certificate;
-import aki.packages.x509.Signable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -21,6 +19,7 @@ public final class Communicator {
 
     public static String[] PRIMARY_OPTIONS = {
             "sign",
+            "keygen"
     };
 
     public static String[] SIGN_OPTIONS = {
@@ -28,6 +27,13 @@ public final class Communicator {
             "-signer",
             "-inkey",
             "-out"
+    };
+
+    public static String[] KEYGEN_OPTTONS = {
+            "-alg",
+            "-bits",
+            "-keyout",
+            "-certout"
     };
 
     private Communicator() {}
@@ -49,7 +55,10 @@ public final class Communicator {
             int exec = execSign(args);
         }
 
-
+        if (primary.equalsIgnoreCase("keygen")) {
+            int exec = execKeyGen(args);
+            System.exit(exec);
+        }
     }
 
     private static ArrayList<String> checkForMissingSuboption(String primaryOption, String[] _args) {
@@ -58,6 +67,11 @@ public final class Communicator {
         switch (primaryOption.toLowerCase()) {
             case "sign" :
                 for (String s : SIGN_OPTIONS) {
+                    if (!args.contains(s)) missing.add(s);
+                }
+                break;
+            case "keygen":
+                for (String s : KEYGEN_OPTTONS) {
                     if (!args.contains(s)) missing.add(s);
                 }
         }
@@ -78,6 +92,58 @@ public final class Communicator {
                 System.exit(1);
             }
         }
+    }
+
+    private static int execKeyGen(String[] _args) {
+        List<String> missingSuboptions = checkForMissingSuboption("keygen", _args);
+        if (!missingSuboptions.isEmpty()) {
+            showUsage("Missing option(s) for keygen: "+missingSuboptions);
+            System.exit(1);
+        }
+
+        if (_args.length < 8) {
+            showUsage("Impossible use of commands.");
+            System.exit(1);
+        }
+
+        try {
+            List<String> args = Arrays.asList(_args);
+            String alg = args.get(args.indexOf("-alg")+1);
+            String _bits = args.get(args.indexOf("-bits")+1);
+            String keyout = args.get(args.indexOf("-keyout")+1);
+            String certout = args.get(args.indexOf("-certout")+1);
+
+            int bits;
+            try {
+                bits = Integer.parseInt(_bits);
+            } catch (NumberFormatException e) {
+                System.out.println("Invalid integer: "+_bits);
+                return 1;
+            }
+
+            String format;
+            if (args.contains("-format")) {
+                format = args.get(args.indexOf("-format")+1);
+            } else {
+                format = "PEM";
+            }
+
+            Signable signable = new Signable();
+            Subject subject;
+            try {
+                subject = Subject.load("/C=CA");
+            } catch (CertificateException e) {
+                e.printStackTrace();
+                return 1;
+            }
+            return VerifyUtils.generateKey(alg, bits, new File(keyout), new File(certout), signable, subject);
+
+        } catch (IndexOutOfBoundsException e) {
+            showUsage("Impossible use of commands (misplaced or missing attributes).");
+            System.exit(1);
+        }
+
+        return 0;
     }
 
     private static int execSign(String[] _args) {
@@ -121,7 +187,7 @@ public final class Communicator {
             int status = signable.sign(null, null, null);
             if (status == 0)
                 FileWriter.write(format.equalsIgnoreCase("DER") ? signable.getDERSignedDataAsString() : signable.getSignedDataPEM(), out);
-            System.exit(status);
+            return status;
 
         } catch (IndexOutOfBoundsException e) {
             showUsage("Impossible use of commands (misplaced or missing attributes).");
@@ -131,14 +197,14 @@ public final class Communicator {
         return 0;
     }
 
-    public static void showUsage(String message) {
+    private static void showUsage(String message) {
         System.out.println(message);
         showUsage();
     }
 
-    public static void showUsage() {
+    private static void showUsage() {
         System.out.println(USAGE);
     }
 
-    public static final String USAGE = BashReader.toSingleString(true, FileReader.getLines("usage.txt"));
+    private static final String USAGE = BashReader.toSingleString(true, FileReader.getLines("usage.txt"));
 }
