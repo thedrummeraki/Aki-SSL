@@ -17,26 +17,46 @@ import java.util.List;
  */
 public final class Communicator {
 
-    public static String[] PRIMARY_OPTIONS = {
+    public final static String[] PRIMARY_OPTIONS = {
             "sign",
-            "keygen"
+            "keygen",
+            "sign2"
     };
 
-    public static String[] SIGN_OPTIONS = {
+    public final static String[] SIGN_OPTIONS = {
             "-in",
             "-signer",
             "-inkey",
             "-out"
     };
 
-    public static String[] KEYGEN_OPTTONS = {
+    public final static String[] SIGN2_OPTIONS = {
+            "-signer",
+            "-inkey",
+            "-status",
+            "-transid",
+            "-recnonce",
+            "-sendnonce",
+            "-out"
+    };
+
+    public final static String[] SIGN2_MANDATORY_OPTIONS = {
+            "-signer",
+            "-inkey",
+            "-status",
+            "-out"
+    };
+
+    public final static String[] KEYGEN_OPTTONS = {
             "-alg",
             "-bits",
             "-keyout",
             "-certout"
     };
 
-    private Communicator() {}
+    private Communicator() {
+
+    }
 
     public static void main(String[] args) {
         if (args.length == 0) {
@@ -53,10 +73,16 @@ public final class Communicator {
 
         if (primary.equalsIgnoreCase("sign")) {
             int exec = execSign(args);
+            System.exit(exec);
         }
 
         if (primary.equalsIgnoreCase("keygen")) {
             int exec = execKeyGen(args);
+            System.exit(exec);
+        }
+
+        if (primary.equalsIgnoreCase("sign2")) {
+            int exec = execSign2(args);
             System.exit(exec);
         }
     }
@@ -74,6 +100,25 @@ public final class Communicator {
                 for (String s : KEYGEN_OPTTONS) {
                     if (!args.contains(s)) missing.add(s);
                 }
+                break;
+            case "sign2":
+                for (String s : SIGN2_MANDATORY_OPTIONS) {
+                    if (!args.contains(s)) missing.add(s);
+                }
+                break;
+        }
+        return missing;
+    }
+
+    private static ArrayList<String> checkForMissingOptionalSuboptions(String primaryOption, String[] _args) {
+        List<String> args = Arrays.asList(_args);
+        ArrayList<String> missing = new ArrayList<>();
+        switch (primaryOption.toLowerCase()) {
+            case "sign2":
+                for (String s : SIGN2_OPTIONS) {
+                    if (!args.contains(s)) missing.add(s);
+                }
+                break;
         }
         return missing;
     }
@@ -101,7 +146,7 @@ public final class Communicator {
             System.exit(1);
         }
 
-        if (_args.length < 8) {
+        if (_args.length < SIGN2_MANDATORY_OPTIONS.length * 2) {
             showUsage("Impossible use of commands.");
             System.exit(1);
         }
@@ -153,7 +198,7 @@ public final class Communicator {
             System.exit(1);
         }
 
-        if (_args.length < 8) {
+        if (_args.length < SIGN_OPTIONS.length * 2) {
             showUsage("Impossible use of commands.");
             System.exit(1);
         }
@@ -195,6 +240,99 @@ public final class Communicator {
         }
 
         return 0;
+    }
+
+    private static int execSign2(String[] _args) {
+        List<String> missingSuboptions = checkForMissingSuboption("sign2", _args);
+        if (!missingSuboptions.isEmpty()) {
+            showUsage("Missing option(s) for sign2: "+missingSuboptions);
+            System.exit(1);
+        }
+
+        if (_args.length < 8) {
+            showUsage("Impossible use of commands.");
+            System.exit(1);
+        }
+
+        List<String> args = Arrays.asList(_args);
+
+        // Mandatory arguments
+        final String signer = args.get(args.indexOf("-signer")+1);
+        final String inkey = args.get(args.indexOf("-inkey")+1);
+        final String out = args.get(args.indexOf("-out")+1);
+        final String status = args.get(args.indexOf("-status")+1);
+
+        // Optional arguments
+        String senderNonce;
+        if (args.contains("-sendnonce")) {
+            try {
+                senderNonce = args.get(args.indexOf("-sendnonce") + 1);
+            } catch (Exception e) {
+
+                senderNonce = null;
+            }
+        } else {
+            senderNonce = null;
+        }
+        String transactionID;
+        if (args.contains("-transid")) {
+            try {
+                transactionID = args.get(args.indexOf("-transid")+1);
+            } catch (Exception e) {
+                transactionID = null;
+            }
+        } else {
+            transactionID = null;
+        }
+        String recipientNonce;
+        if (args.contains("-recnonce")) {
+            try {
+                recipientNonce = args.get(args.indexOf("-recnonce")+1);
+            } catch (Exception e) {
+                recipientNonce = null;
+            }
+        } else {
+            recipientNonce = null;
+        }
+
+//        String format;
+//        if (args.contains("-format")) {
+//            format = args.get(args.indexOf("-format")+1);
+//        } else {
+//            format = "PEM";
+//        }
+
+        catchNonExistingFiles(inkey, signer);
+
+        SCEP scep = new SCEP();
+
+        int res = scep.setCertificateFromFile(signer);
+        if (res != 0) {
+            return res;
+        }
+        res = scep.setPrivateKeyFromFile(inkey);
+        if (res != 0) {
+            return res;
+        }
+
+        try {
+            Integer.parseInt(status);
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("Invalid status: "+status+". Expected 0 (success), 1 (failure) or 2 (pending).");
+        }
+
+        switch (status) {
+            case "0": scep.setSuccess(); break;
+            case "1": scep.setFailure(); break;
+            case "2": scep.setPending(); break;
+            default: throw new IllegalArgumentException("Invalid status: "+status+". Expected 0 (success), 1 (failure) or 2 (pending).");
+        }
+
+        scep.setTransactionId(transactionID);
+        scep.setSenderNonce(senderNonce);
+        scep.setRecipientNonce(recipientNonce);
+
+        return scep.signData(scep.getStatus(), out);
     }
 
     private static void showUsage(String message) {

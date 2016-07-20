@@ -63,6 +63,7 @@ public final class VerifyUtils {
 
     /* OK */
     public static int generateKey(String alg, int bits, File keyOut, File certOut, Signable signable, Subject subject) {
+        alg = alg.trim();
         if (!catchNullInOneOf(alg, keyOut, certOut, signable)) {
             error(TAG, "Null object caught.");
             return Constants.NULL_OBJECT_ERROR;
@@ -89,6 +90,11 @@ public final class VerifyUtils {
 
         int exitValue = br.getExitValue(); //PythonBashCaller.call(args);
 
+        if (exitValue != 0) {
+            error(TAG, "Non zero exit value: "+ exitValue + ". Error message(s): "+br.getErrorMessage());
+            return exitValue;
+        }
+
         if (isValidSubject) {
             args = new String[] {"openssl", "req", "-key", keyout, "-new", "-x509", "-days", "365", "-out", out, "-subj", subject.getRawString()};
         } else {
@@ -105,10 +111,11 @@ public final class VerifyUtils {
             return Constants.NULL_OBJECT_RESULT_ERROR;
         }
 
-//        if (exitValue != 0) {
-//            error(TAG, "Non zero exit value: "+ exitValue);
-//            return exitValue;
-//        }
+        exitValue = br.getExitValue();
+        if (exitValue != 0) {
+            error(TAG, "Non zero exit value: "+ exitValue + ". Error message(s): "+br.getErrorMessage());
+            return exitValue;
+        }
 
         PrivateKey privateKey = PrivateKey.loadPrivateKey(keyOut);
         try {

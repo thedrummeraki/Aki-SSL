@@ -24,6 +24,7 @@ public class Certificate implements Dumpable {
     private String publicKeyFilename;
     private PrivateKey privateKey;
     private Extensions extensions;
+    private String digest;
     private String blob;
 
     private String filename;
@@ -182,6 +183,10 @@ public class Certificate implements Dumpable {
         return blob;
     }
 
+    public String getDigest() {
+        return digest;
+    }
+
     private void writeToFilename() {
         String du = aki.packages.tools.FileWriter.dumpFilename(10, true, ".pem");
         if (filename == null) filename = "tmp/cert-"+du;
@@ -264,6 +269,8 @@ public class Certificate implements Dumpable {
             String pkAlg = x509Certificate.getPublicKey().getAlgorithm();
             String pkFor = x509Certificate.getPublicKey().getFormat();
 
+            cert.digest = x509Certificate.getSigAlgName();
+
             PrivateKey privateKey = PrivateKey.newInstance();
             privateKey.setAlgorithm(pkAlg);
             privateKey.setFormat(pkFor);
@@ -288,6 +295,8 @@ public class Certificate implements Dumpable {
         try {
             Certificate certificate = Certificate.loadCertificateFromFile(filename);
             System.out.println(certificate.isSelfSigned());
+            System.out.println(certificate.getDigest());
+            System.out.println(certificate.getModulus());
             System.out.println(certificate.subject == null ? "No subject" : "Subject: "+certificate.subject.getRawString());
             System.out.println(certificate.issuer == null ? "No issuer" : "Issuer: "+certificate.issuer.getRawString());
         } catch (Exception e) {
