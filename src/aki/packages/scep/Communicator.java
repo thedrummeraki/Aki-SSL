@@ -37,6 +37,7 @@ public final class Communicator {
             "-transid",
             "-recnonce",
             "-sendnonce",
+            "-failinfo",
             "-out"
     };
 
@@ -295,6 +296,38 @@ public final class Communicator {
             recipientNonce = null;
         }
 
+        String failureInfo;
+        boolean provided = true;
+        if (args.contains("-failinfo")) {
+            try {
+                failureInfo = args.get(args.indexOf("-failinfo")+1);
+            } catch (Exception e) {
+                failureInfo = null;
+                provided = false;
+            }
+        } else {
+            failureInfo = null;
+        }
+
+        if (failureInfo == null && !provided) {
+            throw new IllegalArgumentException("You failed to provide a valid fail info.");
+        }
+        FailInfo failInfo;
+        if (failureInfo != null) {
+            int fi;
+            try {
+                fi = Integer.parseInt(failureInfo);
+            } catch (NumberFormatException e) {
+                throw new IllegalArgumentException("The fail info provided is not a valid positive integer.");
+            }
+            if (fi < 0) {
+                throw new IllegalArgumentException("The fail info provided is not a valid positive integer.");
+            }
+            failInfo = FailInfo.init(fi);
+        } else {
+            failInfo = null;
+        }
+
 //        String format;
 //        if (args.contains("-format")) {
 //            format = args.get(args.indexOf("-format")+1);
@@ -328,6 +361,7 @@ public final class Communicator {
             default: throw new IllegalArgumentException("Invalid status: "+status+". Expected 0 (success), 1 (failure) or 2 (pending).");
         }
 
+        scep.setFailInfo(failInfo);
         scep.setTransactionId(transactionID);
         scep.setSenderNonce(senderNonce);
         scep.setRecipientNonce(recipientNonce);

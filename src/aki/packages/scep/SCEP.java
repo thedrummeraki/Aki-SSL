@@ -6,6 +6,7 @@ import org.bouncycastle.asn1.DERPrintableString;
 import org.bouncycastle.asn1.DERSet;
 import org.bouncycastle.asn1.cms.Attribute;
 import org.bouncycastle.asn1.cms.AttributeTable;
+import org.bouncycastle.cert.jcajce.JcaX509CertificateHolder;
 import org.bouncycastle.cms.*;
 import org.bouncycastle.cms.jcajce.JcaSignerInfoGeneratorBuilder;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
@@ -14,6 +15,7 @@ import org.bouncycastle.operator.OperatorCreationException;
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 import org.bouncycastle.operator.jcajce.JcaDigestCalculatorProviderBuilder;
 import org.bouncycastle.pqc.jcajce.provider.BouncyCastlePQCProvider;
+import org.bouncycastle.util.CollectionStore;
 
 import java.io.*;
 import java.security.KeyFactory;
@@ -24,7 +26,10 @@ import java.security.cert.*;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.KeySpec;
 import java.security.spec.PKCS8EncodedKeySpec;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Hashtable;
+import java.util.List;
 
 /**
  * Created by aakintol on 19/07/16.
@@ -45,7 +50,9 @@ public class SCEP {
     private Certificate signerCert;
     private PrivateKey signerKey;
 
+    private boolean includeCA;
     private Certificate caCertificate;
+    private Certificate certificate;
     private Certificate recipientCert;
     private CMSSignedData signedData;
 
@@ -71,6 +78,10 @@ public class SCEP {
         this.signerKey = signerKey;
     }
 
+    public void setCertificate(Certificate certificate) {
+        this.certificate = certificate;
+    }
+
     public void setRecipientCert(Certificate recipientCert) {
         this.recipientCert = recipientCert;
     }
@@ -85,6 +96,13 @@ public class SCEP {
 
     public void setRecipientNonce(String recipientNonce) {
         this.recipientNonce = recipientNonce;
+    }
+
+    public void setFailInfo(FailInfo failInfo) {
+        if (failInfo == null) {
+            failInfo = FailInfo.BAD_REQUEST; // default value
+        }
+        this.failInfo = failInfo;
     }
 
     public void setFailure() {
@@ -143,12 +161,60 @@ public class SCEP {
     }
 
     private int signSuccessData(String outfile) {
+        CMSEnvelopedDataGenerator edGen = new CMSEnvelopedDataGenerator();
 
-        return 0;
+        // We need to add the issued certificate to the signed portion of the CMS
+        List<X509Certificate> certList = new ArrayList<>();
+        if (this.certificate != null) {
+            debug("Adding certificates to response message.");
+            certList.add((X509Certificate) this.caCertificate);
+            if (includeCA) {
+                if (caCertificate != null) {
+                    debug("Including explicitly set CA certificate in SCEP response...");
+                    certList.add((X509Certificate) caCertificate);
+                } else {
+                    error("The CA is missing.");
+                    return 1;
+                }
+            }
+        }
+        /**
+         * Create the signed CMS message to be contained inside the envelope
+         * this message does not contain any message, and no signerInfo
+         **/
+        CMSSignedDataGenerator gen = new CMSSignedDataGenerator();
+        Collection<JcaX509CertificateHolder> x509CertificateHolder = new ArrayList<>();
+        try {
+            for (X509Certificate certificate : certList) {
+                x509CertificateHolder.add(new JcaX509CertificateHolder(certificate));
+            }
+            CollectionStore<JcaX509CertificateHolder> store = new CollectionStore<>(x509CertificateHolder);
+            gen.addCertificates(store);
+        } catch (CMSException | CertificateEncodingException e) {
+            e.printStackTrace();
+            return 1;
+        }
+
+        // TODO: add support for CRLs, like in example below
+        /**
+         * if (this.crl != null)
+         *     gen.addCRL(new JcaX509CRLHolder((X509CRL) crl));
+         * */
+
+        CMSSignedData s;
+        try {
+            s = gen.generate(new CMSAbsentContent(), false);
+        } catch (CMSException e) {
+            e.printStackTrace();
+            return 1;
+        }
+
+
+
+        return this.signData(outfile);
     }
 
-    private int signData(String outfile) {
-
+    private int signData(CMSTypedData msg, String outfile) {
         /**
          * Necessary initial setup:
          * - We need the certificate signer
@@ -173,8 +239,6 @@ public class SCEP {
         values = new DERSet(new DERPrintableString("3"));
         attr = new Attribute(oid, values);
         attributes.put(attr.getAttrType(), attr);
-
-        CMSTypedData msg = new CMSProcessableByteArray(new byte[0]);
 
         // TransactionId
         if (transactionId != null) {
@@ -244,6 +308,10 @@ public class SCEP {
         }
 
         return 0;
+    }
+
+    private int signData(String outfile) {
+        return this.signData(new CMSProcessableByteArray(new byte[0]), outfile);
     }
 
     private void error(String message) {
