@@ -1,14 +1,18 @@
 package aki.packages.scep;
 
+import aki.packages.tools.CertTools;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.DEROctetString;
 import org.bouncycastle.asn1.DERPrintableString;
 import org.bouncycastle.asn1.DERSet;
 import org.bouncycastle.asn1.cms.Attribute;
 import org.bouncycastle.asn1.cms.AttributeTable;
+import org.bouncycastle.asn1.smime.SMIMECapability;
 import org.bouncycastle.cert.jcajce.JcaX509CertificateHolder;
 import org.bouncycastle.cms.*;
 import org.bouncycastle.cms.jcajce.JcaSignerInfoGeneratorBuilder;
+import org.bouncycastle.cms.jcajce.JceCMSContentEncryptorBuilder;
+import org.bouncycastle.cms.jcajce.JceKeyTransRecipientInfoGenerator;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.operator.ContentSigner;
 import org.bouncycastle.operator.OperatorCreationException;
@@ -16,6 +20,7 @@ import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 import org.bouncycastle.operator.jcajce.JcaDigestCalculatorProviderBuilder;
 import org.bouncycastle.pqc.jcajce.provider.BouncyCastlePQCProvider;
 import org.bouncycastle.util.CollectionStore;
+import org.bouncycastle.util.Store;
 
 import java.io.*;
 import java.security.KeyFactory;
@@ -50,7 +55,7 @@ public class SCEP {
     private Certificate signerCert;
     private PrivateKey signerKey;
 
-    private boolean includeCA;
+    private boolean includeCA = true;
     private Certificate caCertificate;
     private Certificate certificate;
     private Certificate recipientCert;
@@ -64,14 +69,18 @@ public class SCEP {
 
     public SCEP() {
         Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
+        this.setPending();
+        includeCA = false;
     }
 
     public void setCaCertificate(Certificate caCertificate) {
         this.caCertificate = caCertificate;
+        debug("Set CA ceritificate: "+((X509Certificate) caCertificate).getSubjectDN().getName() + "# " + ((X509Certificate) caCertificate).getSerialNumber());
     }
 
     public void setSignerCert(Certificate signerCert) {
-        this.caCertificate = signerCert;
+        this.signerCert = signerCert;
+        debug("Set signer ceritificate: "+((X509Certificate) signerCert).getSubjectDN().getName() + "# " + ((X509Certificate) signerCert).getSerialNumber());
     }
 
     public void setSignerKey(PrivateKey signerKey) {
@@ -80,10 +89,12 @@ public class SCEP {
 
     public void setCertificate(Certificate certificate) {
         this.certificate = certificate;
+        debug("Set ceritificate: "+((X509Certificate) certificate).getSubjectDN().getName() + "# " + ((X509Certificate) certificate).getSerialNumber());
     }
 
     public void setRecipientCert(Certificate recipientCert) {
         this.recipientCert = recipientCert;
+        debug("Set recipient ceritificate: "+((X509Certificate) recipientCert).getSubjectDN().getName() + "# " + ((X509Certificate) recipientCert).getSerialNumber());
     }
 
     public void setTransactionId(String transactionId) {
@@ -117,15 +128,67 @@ public class SCEP {
         this.status = ResponseStatus.PENDING;
     }
 
+    public boolean isFailure() {
+        return this.status.equals(ResponseStatus.FAILURE);
+    }
+
+    public boolean isSuccess() {
+        return this.status.equals(ResponseStatus.SUCCESS);
+    }
+
+    public boolean isPending() {
+        return this.status.equals(ResponseStatus.PENDING);
+    }
+
     public CMSSignedData getSignedData() {
         return signedData;
     }
 
-    public int setCertificateFromFile(String filename) {
+    private static final int SIGNER_CERT = 0;
+    private static final int RECIPIENT_CERT = 1;
+    private static final int CERT = 2;
+    private static final int CA = 3;
+
+    public int setSignerCertFromFile(String filename) {
+        if (filename == null) {
+            return 1;
+        }
+        return this.setCertFromFile(filename, SIGNER_CERT);
+    }
+
+    public int setCertFromFile(String filename) {
+        if (filename == null) {
+            return 1;
+        }
+        return this.setCertFromFile(filename, CERT);
+    }
+
+    public int setRecipientCertFromFile(String filename) {
+        if (filename == null) {
+            return 1;
+        }
+        return this.setCertFromFile(filename, RECIPIENT_CERT);
+    }
+
+    public int setCaCertFromFile(String filename) {
+        if (filename == null) {
+            return 1;
+        }
+        return this.setCertFromFile(filename, CA);
+    }
+
+    private int setCertFromFile(String filename, int whichCert) {
         try {
             File file = new File(filename);
             InputStream inputStream = new FileInputStream(file);
-            this.setSignerCert(CertificateFactory.getInstance("X.509").generateCertificate(inputStream));
+            Certificate certificate = CertificateFactory.getInstance("X.509").generateCertificate(inputStream);
+            switch (whichCert) {
+                case SIGNER_CERT: this.setSignerCert(certificate); break;
+                case RECIPIENT_CERT: this.setRecipientCert(certificate); break;
+                case CERT: this.setCertificate(certificate); break;
+                case CA: this.setCaCertificate(certificate); break;
+                default: return 2; // Invalid certificate
+            }
         } catch (IOException | CertificateException e) {
             e.printStackTrace();
             return 1;
@@ -161,19 +224,20 @@ public class SCEP {
     }
 
     private int signSuccessData(String outfile) {
-        CMSEnvelopedDataGenerator edGen = new CMSEnvelopedDataGenerator();
 
+        CMSEnvelopedDataGenerator edGen = new CMSEnvelopedDataGenerator();
+        CMSTypedData msg;
         // We need to add the issued certificate to the signed portion of the CMS
         List<X509Certificate> certList = new ArrayList<>();
         if (this.certificate != null) {
             debug("Adding certificates to response message.");
-            certList.add((X509Certificate) this.caCertificate);
+            certList.add((X509Certificate) this.certificate);
             if (includeCA) {
                 if (caCertificate != null) {
                     debug("Including explicitly set CA certificate in SCEP response...");
                     certList.add((X509Certificate) caCertificate);
                 } else {
-                    error("The CA is missing.");
+                    warn("The CA is missing.");
                     return 1;
                 }
             }
@@ -187,9 +251,11 @@ public class SCEP {
         try {
             for (X509Certificate certificate : certList) {
                 x509CertificateHolder.add(new JcaX509CertificateHolder(certificate));
+                debug("Added a JcaX509CertificateHolder (1)");
             }
             CollectionStore<JcaX509CertificateHolder> store = new CollectionStore<>(x509CertificateHolder);
             gen.addCertificates(store);
+            debug("All certificates have been added to the CMS signed data generator.");
         } catch (CMSException | CertificateEncodingException e) {
             e.printStackTrace();
             return 1;
@@ -203,15 +269,43 @@ public class SCEP {
 
         CMSSignedData s;
         try {
-            s = gen.generate(new CMSAbsentContent(), false);
+            s = gen.generate(new CMSAbsentContent(), true);
         } catch (CMSException e) {
             e.printStackTrace();
             return 1;
         }
 
+        if (recipientCert != null) {
+            try {
+                X509Certificate rec = (X509Certificate) recipientCert;
+                edGen.addRecipientInfoGenerator(new JceKeyTransRecipientInfoGenerator(rec).setProvider(BouncyCastleProvider.PROVIDER_NAME));
+                debug("SCEP has added a recipient certificate: "+rec.getSubjectDN().getName() + "# " + ((X509Certificate) caCertificate).getSerialNumber());
+            } catch (CertificateEncodingException e) {
+                throw new IllegalArgumentException("SCEP can't decode the recipient's self signed certificate.", e);
+            }
+        } else {
+            try {
+                JceKeyTransRecipientInfoGenerator jceKeyTransRecipientInfoGenerator = new JceKeyTransRecipientInfoGenerator((X509Certificate) certificate);
+                if (jceKeyTransRecipientInfoGenerator != null && edGen != null)
+                    edGen.addRecipientInfoGenerator(jceKeyTransRecipientInfoGenerator.setProvider(BouncyCastleProvider.PROVIDER_NAME));
+            } catch (CertificateEncodingException e) {
+                throw new IllegalArgumentException("SCEP can't decode the self signed certificate.", e);
+            }
+        }
+        try {
+            JceCMSContentEncryptorBuilder jceCMSContentEncryptorBuilder = new JceCMSContentEncryptorBuilder(SMIMECapability.dES_CBC).setProvider(BouncyCastleProvider.PROVIDER_NAME);
+            CMSEnvelopedData ed = edGen.generate(new CMSProcessableByteArray(s.getEncoded()), jceCMSContentEncryptorBuilder.build());
+            byte[] edEncoded = ed.getEncoded();
+            debug("The enveloped data is "+ edEncoded.length + " bytes long.");
+            FileWriter.write(edEncoded, "test.env", true, false);
+            msg = new CMSProcessableByteArray(edEncoded);
+        } catch (IOException e) {
+            throw new IllegalArgumentException("SCEP encountered an unexpected I/O error.", e);
+        } catch (CMSException e) {
+            throw new IllegalArgumentException("SCEP encountered an unexpected CMS error.", e);
+        }
 
-
-        return this.signData(outfile);
+        return this.signData(msg, outfile);
     }
 
     private int signData(CMSTypedData msg, String outfile) {
@@ -225,8 +319,30 @@ public class SCEP {
          * - The recipient nonce (A)
          * */
 
-        CMSSignedDataGenerator gen1 = new CMSSignedDataGenerator();
+        if (msg == null) {
+            msg = new CMSProcessableByteArray(new byte[0]);
+            debug("Initializing a new CMS typed data instance...");
+        }
 
+        CMSSignedDataGenerator gen1 = new CMSSignedDataGenerator();
+        List<X509Certificate> certificates = new ArrayList<>();
+        certificates.add((X509Certificate) this.caCertificate);
+        if (this.certificate != null)
+            certificates.add((X509Certificate) this.certificate);
+        if (this.recipientCert != null)
+            certificates.add((X509Certificate) this.recipientCert);
+        Collection<JcaX509CertificateHolder> x509CertificateHolder = new ArrayList<>();
+        try {
+            for (X509Certificate certificate : certificates) {
+                x509CertificateHolder.add(new JcaX509CertificateHolder(certificate));
+                debug("Added a JcaX509CertificateHolder (2)");
+            }
+            CollectionStore<JcaX509CertificateHolder> store = new CollectionStore<>(x509CertificateHolder);
+            gen1.addCertificates(store);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return 1;
+        }
         /**
          * Creating the attributes
          * */
@@ -267,7 +383,7 @@ public class SCEP {
         if (senderNonce != null) {
             oid = new ASN1ObjectIdentifier(SCEP.id_senderNonce);
             debug("Added senderNonce: " + senderNonce);
-            values = new DERSet(new DEROctetString(Base64.encode(senderNonce.getBytes())));
+            values = new DERSet(new DEROctetString(senderNonce.getBytes()));
             attr = new Attribute(oid, values);
             attributes.put(attr.getAttrType(), attr);
         }
@@ -292,7 +408,9 @@ public class SCEP {
             JcaDigestCalculatorProviderBuilder calculatorProviderBuilder = new JcaDigestCalculatorProviderBuilder().setProvider(provider);
             JcaSignerInfoGeneratorBuilder builder = new JcaSignerInfoGeneratorBuilder(calculatorProviderBuilder.build());
             builder.setSignedAttributeGenerator(new DefaultSignedAttributeTableGenerator(new AttributeTable(attributes)));
-            gen1.addSignerInfoGenerator(builder.build(contentSigner, (X509Certificate) ca));
+            X509Certificate x509Ca = (X509Certificate) ca;
+            gen1.addSignerInfoGenerator(builder.build(contentSigner, x509Ca));
+            debug(status.getStringValue()+ ": Signed data with CA "+x509Ca.getIssuerDN().getName()+" | "+x509Ca.getSubjectDN().getName() + "# " + ((X509Certificate) caCertificate).getSerialNumber()+" ("+x509Ca.getSerialNumber()+")");
         } catch (OperatorCreationException | CertificateEncodingException e) {
             e.printStackTrace();
             return 1;
@@ -324,6 +442,10 @@ public class SCEP {
 
     private void debug(String message) {
         Logger.debug(getClass(), message, false);
+    }
+
+    private void warn(String message) {
+        Logger.warn(getClass(), message, false);
     }
 
     public ResponseStatus getStatus() {

@@ -82,15 +82,27 @@ public final class Modulus {
     }
 
     public static void main(String[] args) {
-        String command = "openssl x509 -noout -modulus -in tmp/temp-modulus.pem | openssl md5";
-        try {
-            String[] argss = {"openssl x509 -noout -modulus -in tmp/temp-modulus.pem"};
-            ArrayList<String> execute = BashReader.execute(argss);
-            Logger.debug("Done");
-            BashReader br = BashReader.read(argss);
-            Logger.debug(""+br.getOutput());
-        } catch (Exception e) {
-            e.printStackTrace();
+//        String command = "openssl x509 -noout -modulus -in tmp/temp-modulus.pem | openssl md5";
+//        try {
+//            String[] argss = {"openssl x509 -noout -modulus -in tmp/temp-modulus.pem"};
+//            ArrayList<String> execute = BashReader.execute(argss);
+//            Logger.debug("Done");
+//            BashReader br = BashReader.read(argss);
+//            Logger.debug(""+br.getOutput());
+//        } catch (Exception e) {
+//            e.printStackTrace();
+//        }
+
+        long a = 29999291921L;
+        long vfcrghgyufhbigysdhgfydhsgj = 2L;
+
+        if (a > vfcrghgyufhbigysdhgfydhsgj) {
+            for (;;) {
+                if (++vfcrghgyufhbigysdhgfydhsgj > a) {
+                    System.out.println("OK! "+(int)'쳍' + " comes from " + '쳍');
+                    break;
+                }
+            }
         }
     }
 

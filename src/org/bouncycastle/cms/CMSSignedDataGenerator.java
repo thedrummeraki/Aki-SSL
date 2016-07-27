@@ -77,44 +77,11 @@ public class CMSSignedDataGenerator
      */
     public CMSSignedData generate(
         // FIXME Avoid accessing more than once to support CMSProcessableInputStream
-        CMSTypedData content,
-        boolean encapsulate)
-        throws CMSException
-    {
-        if (!signerInfs.isEmpty())
-        {
+        CMSTypedData content, boolean encapsulate) throws CMSException {
+
+        if (!signerInfs.isEmpty()) {
             throw new IllegalStateException("this method can only be used with SignerInfoGenerator");
         }
-
-                // TODO
-//        if (signerInfs.isEmpty())
-//        {
-//            /* RFC 3852 5.2
-//             * "In the degenerate case where there are no signers, the
-//             * EncapsulatedContentInfo value being "signed" is irrelevant.  In this
-//             * case, the content type within the EncapsulatedContentInfo value being
-//             * "signed" MUST be id-data (as defined in section 4), and the content
-//             * field of the EncapsulatedContentInfo value MUST be omitted."
-//             */
-//            if (encapsulate)
-//            {
-//                throw new IllegalArgumentException("no signers, encapsulate must be false");
-//            }
-//            if (!DATA.equals(eContentType))
-//            {
-//                throw new IllegalArgumentException("no signers, eContentType must be id-data");
-//            }
-//        }
-//
-//        if (!DATA.equals(eContentType))
-//        {
-//            /* RFC 3852 5.3
-//             * [The 'signedAttrs']...
-//             * field is optional, but it MUST be present if the content type of
-//             * the EncapsulatedContentInfo value being signed is not id-data.
-//             */
-//            // TODO signedAttrs must be present for all signers
-//        }
 
         ASN1EncodableVector  digestAlgs = new ASN1EncodableVector();
         ASN1EncodableVector  signerInfos = new ASN1EncodableVector();
@@ -124,8 +91,7 @@ public class CMSSignedDataGenerator
         //
         // add the precalculated SignerInfo objects.
         //
-        for (Iterator it = _signers.iterator(); it.hasNext();)
-        {
+        for (Iterator it = _signers.iterator(); it.hasNext();) {
             SignerInformation signer = (SignerInformation)it.next();
             digestAlgs.add(CMSSignedHelper.INSTANCE.fixAlgID(signer.getDigestAlgorithmID()));
 
@@ -140,12 +106,10 @@ public class CMSSignedDataGenerator
 
         ASN1OctetString octs = null;
 
-        if (content.getContent() != null)
-        {
+        if (content.getContent() != null) {
             ByteArrayOutputStream bOut = null;
 
-            if (encapsulate)
-            {
+            if (encapsulate) {
                 bOut = new ByteArrayOutputStream();
             }
 
@@ -154,25 +118,21 @@ public class CMSSignedDataGenerator
             // Just in case it's unencapsulated and there are no signers!
             cOut = CMSUtils.getSafeOutputStream(cOut);
 
-            try
-            {
+            try {
                 content.write(cOut);
 
                 cOut.close();
             }
-            catch (IOException e)
-            {
+            catch (IOException e) {
                 throw new CMSException("data processing exception: " + e.getMessage(), e);
             }
 
-            if (encapsulate)
-            {
+            if (encapsulate) {
                 octs = new BEROctetString(bOut.toByteArray());
             }
         }
 
-        for (Iterator it = signerGens.iterator(); it.hasNext();)
-        {
+        for (Iterator it = signerGens.iterator(); it.hasNext();) {
             SignerInfoGenerator sGen = (SignerInfoGenerator)it.next();
             SignerInfo inf = sGen.generate(contentTypeOID);
 
@@ -181,37 +141,28 @@ public class CMSSignedDataGenerator
 
             byte[] calcDigest = sGen.getCalculatedDigest();
 
-            if (calcDigest != null)
-            {
+            if (calcDigest != null) {
                 digests.put(inf.getDigestAlgorithm().getAlgorithm().getId(), calcDigest);
             }
         }
 
         ASN1Set certificates = null;
 
-        if (certs.size() != 0)
-        {
+        if (certs.size() != 0) {
             certificates = CMSUtils.createBerSetFromList(certs);
         }
 
         ASN1Set certrevlist = null;
 
-        if (crls.size() != 0)
-        {
+        if (crls.size() != 0) {
             certrevlist = CMSUtils.createBerSetFromList(crls);
         }
 
         ContentInfo encInfo = new ContentInfo(contentTypeOID, octs);
 
-        SignedData  sd = new SignedData(
-                                 new DERSet(digestAlgs),
-                                 encInfo,
-                                 certificates,
-                                 certrevlist,
-                                 new DERSet(signerInfos));
+        SignedData sd = new SignedData(new DERSet(digestAlgs), encInfo, certificates, certrevlist, new DERSet(signerInfos));
 
-        ContentInfo contentInfo = new ContentInfo(
-            CMSObjectIdentifiers.signedData, sd);
+        ContentInfo contentInfo = new ContentInfo(CMSObjectIdentifiers.signedData, sd);
 
         return new CMSSignedData(content, contentInfo);
     }

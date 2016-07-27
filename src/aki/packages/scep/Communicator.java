@@ -20,7 +20,8 @@ public final class Communicator {
     public final static String[] PRIMARY_OPTIONS = {
             "sign",
             "keygen",
-            "sign2"
+            "sign2",
+            "clear"
     };
 
     public final static String[] SIGN_OPTIONS = {
@@ -38,6 +39,8 @@ public final class Communicator {
             "-recnonce",
             "-sendnonce",
             "-failinfo",
+            "-reccert",
+            "-cert",
             "-out"
     };
 
@@ -45,7 +48,8 @@ public final class Communicator {
             "-signer",
             "-inkey",
             "-status",
-            "-out"
+            "-out",
+            "-ca"
     };
 
     public final static String[] KEYGEN_OPTTONS = {
@@ -55,9 +59,11 @@ public final class Communicator {
             "-certout"
     };
 
-    private Communicator() {
+    public final static String[] CLEAR_OPTIONS = {
+            "-except"
+    };
 
-    }
+    private Communicator() {}
 
     public static void main(String[] args) {
         if (args.length == 0) {
@@ -262,6 +268,7 @@ public final class Communicator {
         final String inkey = args.get(args.indexOf("-inkey")+1);
         final String out = args.get(args.indexOf("-out")+1);
         final String status = args.get(args.indexOf("-status")+1);
+        final String ca = args.get(args.indexOf("-ca")+1);
 
         // Optional arguments
         String senderNonce;
@@ -339,7 +346,7 @@ public final class Communicator {
 
         SCEP scep = new SCEP();
 
-        int res = scep.setCertificateFromFile(signer);
+        int res = scep.setSignerCertFromFile(signer);
         if (res != 0) {
             return res;
         }
@@ -361,12 +368,50 @@ public final class Communicator {
             default: throw new IllegalArgumentException("Invalid status: "+status+". Expected 0 (success), 1 (failure) or 2 (pending).");
         }
 
+        if (scep.isSuccess()) {
+            // Make sure the recipient certificate and the certificate have been provided.
+            String recipientCert;
+            if (args.contains("-reccert")) {
+                try {
+                    recipientCert = args.get(args.indexOf("-reccert")+1);
+                } catch (Exception e) {
+                    recipientCert = null;
+                }
+            } else {
+                recipientCert = null;
+            }
+            scep.setRecipientCertFromFile(recipientCert);
+
+            String certCert;
+            if (args.contains("-cert")) {
+                try {
+                    certCert = args.get(args.indexOf("-cert")+1);
+                } catch (Exception e) {
+                    certCert = null;
+                }
+            } else {
+                certCert = null;
+            }
+            res = scep.setCertFromFile(certCert);
+            if (res != 0) {
+                throw new IllegalArgumentException("You need to set a VALID certificate for the success response.");
+            }
+        }
+
+        scep.setCaCertFromFile(ca);
         scep.setFailInfo(failInfo);
         scep.setTransactionId(transactionID);
         scep.setSenderNonce(senderNonce);
         scep.setRecipientNonce(recipientNonce);
 
         return scep.signData(scep.getStatus(), out);
+    }
+
+    private static int execClear(String[] _args) {
+        List<String> args = Arrays.asList(_args);
+        boolean except = args.contains("-except");
+        
+        return 0;
     }
 
     private static void showUsage(String message) {
