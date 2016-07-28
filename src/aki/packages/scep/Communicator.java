@@ -8,6 +8,7 @@ import aki.packages.tools.FileReader;
 import aki.packages.tools.FileWriter;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -16,6 +17,23 @@ import java.util.List;
  * Created by aakintol on 30/06/16.
  */
 public final class Communicator {
+
+    private static String USAGE;
+
+    static {
+        try {
+            USAGE = BashReader.toSingleString(true, FileReader.getLinesAndThrow("usage.txt"));
+        } catch (IOException e) {
+            USAGE = "Usage: java Communicator [option] [-suboptions].\n" +
+                    "\n" +
+                    "List of [options]:\n" +
+                    "    sign (-in data.txt -signer signer.crt -inkey -signer.key -out output.txt -format [PEM (default) or DER])\n" +
+                    "    sign2 (-signer signer.pem -inkey signer-key.der -out output.der -status 0|1|2 -ca my-ca.pem)\n" +
+                    "    keygen (-alg RSA|DSA -bits [#bits for private key] -keyout new.key -certout new.cert)\n" +
+                    "   \n" +
+                    "Note: For the option \"sign2\", the tag \"-status\" takes the integers 0 to 2. 0 is the SCEP status \"SUCESS\", 1 \"FAILURE\" and 2 \"PENDING\".";
+        }
+    }
 
     public final static String[] PRIMARY_OPTIONS = {
             "sign",
@@ -422,6 +440,4 @@ public final class Communicator {
     private static void showUsage() {
         System.out.println(USAGE);
     }
-
-    private static final String USAGE = BashReader.toSingleString(true, FileReader.getLines("usage.txt"));
 }

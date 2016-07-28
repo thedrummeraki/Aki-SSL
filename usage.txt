@@ -2,3 +2,7 @@ Usage: java Communicator [option] [-suboptions].
 
 List of [options]:
     sign (-in data.txt -signer signer.crt -inkey -signer.key -out output.txt -format [PEM (default) or DER])
+    sign2 (-signer signer.pem -inkey signer-key.der -out output.der -status 0|1|2 -ca my-ca.pem)
+    keygen (-alg RSA|DSA -bits [#bits for private key] -keyout new.key -certout new.cert)
+   
+Note: For the option "sign2", the tag "-status" takes the integers 0 to 2. 0 is the SCEP status "SUCESS", 1 "FAILURE" and 2 "PENDING".

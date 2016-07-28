@@ -45,6 +45,27 @@ public final class FileReader {
         return null;
     }
 
+    private static ArrayList<String> getLinesAndThrow(String path) throws IOException {
+        if (path != null) {
+            FileInputStream fis = new FileInputStream(new File(path));
+            InputStreamReader isr = new InputStreamReader(fis);
+            BufferedReader br = new BufferedReader(isr);
+
+            String line;
+            ArrayList<String> list = new ArrayList<String>();
+            while ((line = br.readLine()) != null) {
+                list.add(line);
+            }
+
+            br.close();
+            fis.close();
+
+            return list;
+        }
+        Logger.error("FileReader", "The path is null.");
+        return null;
+    }
+
     public static ArrayList<String> getLines(String... paths) {
         ArrayList<String> ps = new ArrayList<String>();
         for (String path : paths) {
@@ -54,6 +75,16 @@ public final class FileReader {
             } catch (Exception e) {
                 return ps;
             }
+            if (lines == null) continue;
+            ps.addAll(lines);
+        }
+        return ps;
+    }
+
+    public static ArrayList<String> getLinesAndThrow(String... paths) throws IOException {
+        ArrayList<String> ps = new ArrayList<>();
+        for (String path : paths) {
+            ArrayList<String> lines = getLinesAndThrow(path);
             if (lines == null) continue;
             ps.addAll(lines);
         }
