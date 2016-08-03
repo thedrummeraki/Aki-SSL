@@ -1,6 +1,5 @@
 package aki.packages.scep;
 
-import aki.packages.tools.CertTools;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.DEROctetString;
 import org.bouncycastle.asn1.DERPrintableString;
@@ -18,9 +17,7 @@ import org.bouncycastle.operator.ContentSigner;
 import org.bouncycastle.operator.OperatorCreationException;
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 import org.bouncycastle.operator.jcajce.JcaDigestCalculatorProviderBuilder;
-import org.bouncycastle.pqc.jcajce.provider.BouncyCastlePQCProvider;
 import org.bouncycastle.util.CollectionStore;
-import org.bouncycastle.util.Store;
 
 import java.io.*;
 import java.security.KeyFactory;
@@ -279,7 +276,7 @@ public class SCEP {
             try {
                 X509Certificate rec = (X509Certificate) recipientCert;
                 edGen.addRecipientInfoGenerator(new JceKeyTransRecipientInfoGenerator(rec).setProvider(BouncyCastleProvider.PROVIDER_NAME));
-                debug("SCEP has added a recipient certificate: "+rec.getSubjectDN().getName() + "# " + ((X509Certificate) caCertificate).getSerialNumber());
+                debug("SCEP has added a recipient certificate: "+rec.getSubjectDN().getName() + "# " + rec.getSerialNumber());
             } catch (CertificateEncodingException e) {
                 throw new IllegalArgumentException("SCEP can't decode the recipient's self signed certificate.", e);
             }

@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project>
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.cbnco</groupId>
+  <artifactId>cbnca</artifactId>
+  <version>0.1-coop</version>
+  <packaging>jar</packaging>
+
+  <name>Candian Bank Note Company Ltd.</name>
+  <description>
+    This is Candian Bank Note Company Ltd. Certificate Authority management.
+  </description>
+
+  <organization>
+    <name>Candian Bank Note Company Ltd.</name>
+    <url>http://www.cbnco.com/</url>
+  </organization>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>rpm-maven-plugin</artifactId>
+        <version>2.1.5</version>
+        <executions>
+          <execution>
+            <id>generate-rpm</id>
+            <goals>
+              <goal>rpm</goal>
+            </goals>
+          </execution>
+        </executions>
+
+        <configuration>
+          <license>Apache 2.0</license>
+          <distribution>CBN 2016</distribution>
+          <group>Coop uOttawa</group>
+          <icon>src/images/icon.jpg</icon>
+          <packager>COOP</packager>
+          <prefix>/usr/local</prefix>
+          <changelogFile>src/changelog</changelogFile>
+          <defineStatements>
+            <defineStatement>_unpackaged_files_terminate_build 0</defineStatement>
+          </defineStatements>
+
+          <mappings>
+            <mapping>
+              <!-- The CBNCA Python code -->
+              <directory>/opt/cbnca</directory>
+              <filemode>644</filemode>
+              <username>cbnca</username>
+              <groupname>cbnca</groupname>
+              <sources>
+                <source>
+                  <location>bin/</location>
+                </source>
+              </sources>
+            </mapping>
+
+            <!-- The CBNCA PHP web interface code -->
+            <mapping>
+              <directory>/srv/www/</directory>
+              <filemode>444</filemode>
+              <username>apache</username>
+              <groupname>apache</groupname>
+              <sources>
+                <source>
+                  <location>/srv/www/htdocs/cbnca</location>
+                </source>
+              </sources>
+            </mapping>
+            <mapping>
+
+            <!-- The CBNCA documentation -->
+            <mapping>
+              <directory>/opt/cbnca/docs</directory>
+              <filemode>444</filemode>
+              <username>cbcna</username>
+              <groupname>cbnca</groupname>
+            </mapping>
+
+          </mappings>
+          <preinstallScriptlet>
+            <script>
+              echo "Installing CBNCA now..."
+            </script>
+          </preinstallScriptlet>
+          <postinstallScriptlet>
+            <script>
+              echo "Install finished."
+            </script>
+          </postinstallScriptlet>
+          <preremoveScriptlet>
+            <!-- <scriptFile>src/main/scripts/preremove</scriptFile>
+            <fileEncoding>utf-8</fileEncoding> -->
+            <script>
+              echo "Removing CBNCA now..."
+            </script>
+          </preremoveScript>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>

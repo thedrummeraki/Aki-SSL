@@ -39,7 +39,8 @@ public final class Communicator {
             "sign",
             "keygen",
             "sign2",
-            "clear"
+            "clear",
+            "req"
     };
 
     public final static String[] SIGN_OPTIONS = {
@@ -77,8 +78,13 @@ public final class Communicator {
             "-certout"
     };
 
-    public final static String[] CLEAR_OPTIONS = {
-            "-except"
+    public final static String[] REQ_OPTIONS = {
+            "-public",
+            "-private",
+            "-subject",
+            "-basic_con",
+            "-key_usage",
+            "-ski"
     };
 
     private Communicator() {}
@@ -110,6 +116,11 @@ public final class Communicator {
             int exec = execSign2(args);
             System.exit(exec);
         }
+
+        if (primary.equalsIgnoreCase("req")) {
+            int exec = execReq(args);
+            System.exit(exec);
+        }
     }
 
     private static ArrayList<String> checkForMissingSuboption(String primaryOption, String[] _args) {
@@ -131,6 +142,10 @@ public final class Communicator {
                     if (!args.contains(s)) missing.add(s);
                 }
                 break;
+            case "req":
+                for (String s : REQ_OPTIONS) {
+                    if (!args.contains(s)) missing.add(s);
+                }
         }
         return missing;
     }
@@ -171,7 +186,7 @@ public final class Communicator {
             System.exit(1);
         }
 
-        if (_args.length < SIGN2_MANDATORY_OPTIONS.length * 2) {
+        if (_args.length < KEYGEN_OPTTONS.length * 2) {
             showUsage("Impossible use of commands.");
             System.exit(1);
         }
@@ -425,11 +440,28 @@ public final class Communicator {
         return scep.signData(scep.getStatus(), out);
     }
 
-    private static int execClear(String[] _args) {
+    private static int execReq(String[] _args) {
         List<String> args = Arrays.asList(_args);
-        boolean except = args.contains("-except");
-        
-        return 0;
+
+        List<String> missingSuboptions = checkForMissingSuboption("req", _args);
+        if (!missingSuboptions.isEmpty()) {
+            showUsage("Missing option(s) for req: "+missingSuboptions);
+            System.exit(1);
+        }
+
+        if (_args.length < REQ_OPTIONS.length * 2) {
+            showUsage("Impossible use of commands.");
+            System.exit(1);
+        }
+
+        String pubkeyFilename = args.get(args.indexOf("-public")+1);
+        String privkeyFilename = args.get(args.indexOf("-private")+1);
+        String subject = args.get(args.indexOf("-subject")+1);
+        boolean basicCon = Boolean.valueOf(args.get(args.indexOf("-basic_con")+1));
+        boolean keyUsage = Boolean.valueOf(args.get(args.indexOf("-key_usage")+1));
+        byte[] ski = args.get(args.indexOf("-ski")+1).getBytes();
+
+        return MakeA.certificateRequest(pubkeyFilename, privkeyFilename, subject, basicCon, keyUsage, ski);
     }
 
     private static void showUsage(String message) {
