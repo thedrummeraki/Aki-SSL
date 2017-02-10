@@ -7,7 +7,7 @@ import java.io.OutputStream;
 import org.bouncycastle.util.Strings;
 
 /**
- * Utility class for converting Base64 data to bytes and back again.
+ * Utility class for converting MyBase64 data to bytes and back again.
  */
 public class Base64
 {

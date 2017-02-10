@@ -1,28 +1,33 @@
 package aki.packages.scep;
 
 import aki.packages.tools.BashReader;
-import aki.packages.tools.Logger;
-import aki.packages.utils.VerifyUtils;
-import aki.packages.x509.*;
-import aki.packages.tools.FileReader;
-import aki.packages.tools.FileWriter;
+import aki.packages.tools.MyFileReader;
+
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.security.Security;
+import java.util.*;
 
 /**
  * Created by aakintol on 30/06/16.
  */
+/**
+ * This class is used to sign data data from a file, create PKCS7 signed data, creating a certificate request,
+ * or generating a certificate and it's private key.
+ * Run the main method without any arguments to see the available options.
+ * */
 public final class Communicator {
 
+    /**
+     * Usage string. Printed out when no or wrong arguments are passed in the main method of this class.
+     * */
     private static String USAGE;
 
     static {
         try {
-            USAGE = BashReader.toSingleString(true, FileReader.getLinesAndThrow("usage.txt"));
+            USAGE = BashReader.toSingleString(true, MyFileReader.getLinesAndThrow("usage.txt"));
         } catch (IOException e) {
             USAGE = "Usage: java Communicator [option] [-suboptions].\n" +
                     "\n" +
@@ -35,21 +40,34 @@ public final class Communicator {
         }
     }
 
+    /**
+     * All of the primary options available for using this class.
+     *
+     * */
     public final static String[] PRIMARY_OPTIONS = {
-            "sign",
-            "keygen",
             "sign2",
-            "clear",
-            "req"
+            "req",
+            "cmp-ecdsa-gen"
     };
 
-    public final static String[] SIGN_OPTIONS = {
-            "-in",
-            "-signer",
-            "-inkey",
-            "-out"
-    };
-
+    /**
+     * Sub-options used for primary option 'sign2'. Create PKCS7 signed data for a SCEP response!
+     *
+     * MANDATORY:
+     * -signer: The certificate file PEM (base64 with headers and footers) encoded. (needs to exist)
+     * -inkey: The certificate's private key DER (ANS1) encoded. (needs to exist)
+     * -status: The SCEP status
+     * -transid: The SCEP request's transaction ID
+     * -recnonce: The SCEP recipient nonce
+     * -sendnonce: The SCEP sender nonce
+     * -failinfo: The SCEP fail info (optional, but needed for failure responses)
+     * -reccert: The SCEP recipient certificate (needs to exist)
+     * -cert: The SCEP client certificate (needs to exist)
+     * -out: The result's file
+     *
+     * @see ResponseStatus
+     * @see FailInfo
+     * */
     public final static String[] SIGN2_OPTIONS = {
             "-signer",
             "-inkey",
@@ -63,6 +81,9 @@ public final class Communicator {
             "-out"
     };
 
+    /**
+     * Sub-options that are expected from the primary option 'sign2'.
+     * */
     public final static String[] SIGN2_MANDATORY_OPTIONS = {
             "-signer",
             "-inkey",
@@ -71,13 +92,12 @@ public final class Communicator {
             "-ca"
     };
 
-    public final static String[] KEYGEN_OPTTONS = {
-            "-alg",
-            "-bits",
-            "-keyout",
-            "-certout"
-    };
-
+    /**
+     * Sub-options used for primary option 'req'. Generate a certificate request, 'request.out'!
+     *
+     * Do not use this method, it is deprecated. Use openssl or pyopenssl if possible.
+     * */
+    @Deprecated
     public final static String[] REQ_OPTIONS = {
             "-public",
             "-private",
@@ -87,9 +107,26 @@ public final class Communicator {
             "-ski"
     };
 
+    /**
+     * Sub-options for primary option 'cmp-ecdsa-gen'.
+     * */
+    public final static String[] CPM_ECDSA_OPTIONS = {
+            "-privout",
+            "-pubout",
+            "-curve"
+    };
+
+    /**
+     * Sub-options for primary option 'cmp-ecdsa-gen'.
+     * */
+    public final static String[] CPM_MANDATORY_ECDSA_OPTIONS = {
+            "-privout"
+    };
+
     private Communicator() {}
 
     public static void main(String[] args) {
+        Security.addProvider(new BouncyCastleProvider());
         if (args.length == 0) {
             showUsage();
             System.exit(0);
@@ -102,16 +139,6 @@ public final class Communicator {
             System.exit(1);
         }
 
-        if (primary.equalsIgnoreCase("sign")) {
-            int exec = execSign(args);
-            System.exit(exec);
-        }
-
-        if (primary.equalsIgnoreCase("keygen")) {
-            int exec = execKeyGen(args);
-            System.exit(exec);
-        }
-
         if (primary.equalsIgnoreCase("sign2")) {
             int exec = execSign2(args);
             System.exit(exec);
@@ -121,22 +148,21 @@ public final class Communicator {
             int exec = execReq(args);
             System.exit(exec);
         }
+
+        if (primary.equalsIgnoreCase("cmp-ecdsa-gen")) {
+            System.exit(execCMPECDSA(args));
+        }
     }
 
+    /**
+     * Check if any sub-options from the specified primary option are missing.
+     *
+     * @return The array of missing sub-options.
+     * */
     private static ArrayList<String> checkForMissingSuboption(String primaryOption, String[] _args) {
         List<String> args = Arrays.asList(_args);
         ArrayList<String> missing = new ArrayList<>();
         switch (primaryOption.toLowerCase()) {
-            case "sign" :
-                for (String s : SIGN_OPTIONS) {
-                    if (!args.contains(s)) missing.add(s);
-                }
-                break;
-            case "keygen":
-                for (String s : KEYGEN_OPTTONS) {
-                    if (!args.contains(s)) missing.add(s);
-                }
-                break;
             case "sign2":
                 for (String s : SIGN2_MANDATORY_OPTIONS) {
                     if (!args.contains(s)) missing.add(s);
@@ -146,23 +172,19 @@ public final class Communicator {
                 for (String s : REQ_OPTIONS) {
                     if (!args.contains(s)) missing.add(s);
                 }
-        }
-        return missing;
-    }
-
-    private static ArrayList<String> checkForMissingOptionalSuboptions(String primaryOption, String[] _args) {
-        List<String> args = Arrays.asList(_args);
-        ArrayList<String> missing = new ArrayList<>();
-        switch (primaryOption.toLowerCase()) {
-            case "sign2":
-                for (String s : SIGN2_OPTIONS) {
+            case "cmp-ecdsa-gen":
+                for (String s : CPM_MANDATORY_ECDSA_OPTIONS) {
                     if (!args.contains(s)) missing.add(s);
                 }
-                break;
         }
         return missing;
     }
 
+    /**
+     * Check whether or not the specified option is a primary option.
+     *
+     * @return whether or not the specified option is a primary option.
+     * */
     private static boolean isPrimaryOption(String option) {
         for (String o : PRIMARY_OPTIONS) {
             if (o.equalsIgnoreCase(option)) return true;
@@ -170,6 +192,10 @@ public final class Communicator {
         return false;
     }
 
+    /**
+     * Check if all specified filenames exist or not. System.exit with exit status 1 is called if one of the filenames
+     * does not exist.
+     * */
     private static void catchNonExistingFiles(String... filenames) {
         for (String filename : filenames) {
             if (!new File(filename).exists()) {
@@ -179,121 +205,29 @@ public final class Communicator {
         }
     }
 
-    private static int execKeyGen(String[] _args) {
-        List<String> missingSuboptions = checkForMissingSuboption("keygen", _args);
-        if (!missingSuboptions.isEmpty()) {
-            showUsage("Missing option(s) for keygen: "+missingSuboptions);
-            System.exit(1);
-        }
 
-        if (_args.length < KEYGEN_OPTTONS.length * 2) {
-            showUsage("Impossible use of commands.");
-            System.exit(1);
-        }
-
-        try {
-            List<String> args = Arrays.asList(_args);
-            String alg = args.get(args.indexOf("-alg")+1);
-            String _bits = args.get(args.indexOf("-bits")+1);
-            String keyout = args.get(args.indexOf("-keyout")+1);
-            String certout = args.get(args.indexOf("-certout")+1);
-
-            int bits;
-            try {
-                bits = Integer.parseInt(_bits);
-            } catch (NumberFormatException e) {
-                System.out.println("Invalid integer: "+_bits);
-                return 1;
-            }
-
-            String format;
-            if (args.contains("-format")) {
-                format = args.get(args.indexOf("-format")+1);
-            } else {
-                format = "PEM";
-            }
-
-            Signable signable = new Signable();
-            Subject subject;
-            try {
-                subject = Subject.load("/C=CA");
-            } catch (CertificateException e) {
-                e.printStackTrace();
-                return 1;
-            }
-            return VerifyUtils.generateKey(alg, bits, new File(keyout), new File(certout), signable, subject);
-
-        } catch (IndexOutOfBoundsException e) {
-            showUsage("Impossible use of commands (misplaced or missing attributes).");
-            System.exit(1);
-        }
-
-        return 0;
-    }
-
-    private static int execSign(String[] _args) {
-        List<String> missingSuboptions = checkForMissingSuboption("sign", _args);
-        if (!missingSuboptions.isEmpty()) {
-            showUsage("Missing option(s) for sign: "+missingSuboptions);
-            System.exit(1);
-        }
-
-        if (_args.length < SIGN_OPTIONS.length * 2) {
-            showUsage("Impossible use of commands.");
-            System.exit(1);
-        }
-
-        try {
-            List<String> args = Arrays.asList(_args);
-            String in = args.get(args.indexOf("-in")+1);
-            String signer = args.get(args.indexOf("-signer")+1);
-            String inkey = args.get(args.indexOf("-inkey")+1);
-            String out = args.get(args.indexOf("-out")+1);
-
-            String format;
-            if (args.contains("-format")) {
-                format = args.get(args.indexOf("-format")+1);
-            } else {
-                format = "PEM";
-            }
-
-            catchNonExistingFiles(in, inkey, signer);
-
-            Signable signable = new Signable();
-            signable.setContents(BashReader.toSingleString(true, FileReader.getLines(in)));
-            try {
-                signable.setCertSigner(Certificate.loadCertificateFromFile(signer));
-                signable.setPrivateKeySigner(PrivateKey.loadPrivateKey(new File(inkey)));
-            } catch (CertificateException e) {
-                Logger.error(e.getClass(), e.getMessage(), false);
-                System.exit(400);
-            }
-
-            int status = signable.sign(null, null, null);
-            if (status == 0)
-                FileWriter.write(format.equalsIgnoreCase("DER") ? signable.getDERSignedDataAsString() : signable.getSignedDataPEM(), out);
-            return status;
-
-        } catch (IndexOutOfBoundsException e) {
-            showUsage("Impossible use of commands (misplaced or missing attributes).");
-            System.exit(1);
-        }
-
-        return 0;
-    }
-
+    /**
+     * Executes the primary option 'sign2'
+     *
+     * @return the exit status code
+     * */
     private static int execSign2(String[] _args) {
+        // Get any missing sub-options and exit with status 1 if a file is missing.
         List<String> missingSuboptions = checkForMissingSuboption("sign2", _args);
         if (!missingSuboptions.isEmpty()) {
             showUsage("Missing option(s) for sign2: "+missingSuboptions);
             System.exit(1);
         }
 
-        if (_args.length < 8) {
+        // Check to see if there is a reasonable number of arguments and exit with status 1 if not.
+        // Why 10? There are 5 mandatory arguments, so having a reasonable amount of arguments means
+        // that there needs to be 5 pairs arguments, so 10 arguments.
+        if (_args.length < 10) {
             showUsage("Impossible use of commands.");
             System.exit(1);
         }
 
+        // Get the required arguments
         List<String> args = Arrays.asList(_args);
 
         // Mandatory arguments
@@ -349,6 +283,7 @@ public final class Communicator {
             failureInfo = null;
         }
 
+        // Check if a -failinfo argument is passed in but no actual info is passed in
         if (failureInfo == null && !provided) {
             throw new IllegalArgumentException("You failed to provide a valid fail info.");
         }
@@ -375,25 +310,31 @@ public final class Communicator {
 //            format = "PEM";
 //        }
 
-        catchNonExistingFiles(inkey, signer);
+        // Check if the certificate signer and it's private key files exist.
+        catchNonExistingFiles(signer);
 
+        // Create our SCEP object.
         SCEP scep = new SCEP();
 
+        // Set the certificate signer and private key
         int res = scep.setSignerCertFromFile(signer);
         if (res != 0) {
             return res;
         }
-        res = scep.setPrivateKeyFromFile(inkey);
+        byte[] decoded = base64URLDecode(inkey);
+        res = scep.setPrivateKeyFromBuff(decoded);
         if (res != 0) {
             return res;
         }
 
+        // Try to parse the status as an integer
         try {
             Integer.parseInt(status);
         } catch (NumberFormatException e) {
             throw new IllegalArgumentException("Invalid status: "+status+". Expected 0 (success), 1 (failure) or 2 (pending).");
         }
 
+        // Check if the status, or interrupt the programme
         switch (status) {
             case "0": scep.setSuccess(); break;
             case "1": scep.setFailure(); break;
@@ -402,7 +343,7 @@ public final class Communicator {
         }
 
         if (scep.isSuccess()) {
-            // Make sure the recipient certificate and the certificate have been provided.
+            // Make sure the recipient certificate and the client certificate have been provided.
             String recipientCert;
             if (args.contains("-reccert")) {
                 try {
@@ -415,31 +356,40 @@ public final class Communicator {
             }
             scep.setRecipientCertFromFile(recipientCert);
 
-            String certCert;
+            String clientCert;
             if (args.contains("-cert")) {
                 try {
-                    certCert = args.get(args.indexOf("-cert")+1);
+                    clientCert = args.get(args.indexOf("-cert")+1);
                 } catch (Exception e) {
-                    certCert = null;
+                    clientCert = null;
                 }
             } else {
-                certCert = null;
+                clientCert = null;
             }
-            res = scep.setCertFromFile(certCert);
+            res = scep.setCertFromFile(clientCert);
             if (res != 0) {
                 throw new IllegalArgumentException("You need to set a VALID certificate for the success response.");
             }
         }
 
+        // Finalize the data initialization
         scep.setCaCertFromFile(ca);
         scep.setFailInfo(failInfo);
         scep.setTransactionId(transactionID);
         scep.setSenderNonce(senderNonce);
         scep.setRecipientNonce(recipientNonce);
 
+        // Finish by signing the data
         return scep.signData(scep.getStatus(), out);
     }
 
+
+    /**
+     * Executes the primary option 'req'
+     *
+     * @return the exit status code
+     * */
+    @Deprecated
     private static int execReq(String[] _args) {
         List<String> args = Arrays.asList(_args);
 
@@ -462,6 +412,56 @@ public final class Communicator {
         byte[] ski = args.get(args.indexOf("-ski")+1).getBytes();
 
         return MakeA.certificateRequest(pubkeyFilename, privkeyFilename, subject, basicCon, keyUsage, ski);
+    }
+
+    /**
+     * Executes the primary option 'cmp-ecdsa-gen'
+     *
+     * @return the exit status code
+     * */
+    private static int execCMPECDSA(String[] _args) {
+        List<String> args = Arrays.asList(_args);
+
+        List<String> missingSuboptions = checkForMissingSuboption("cmp-ecdsa-gen", _args);
+        if (!missingSuboptions.isEmpty()) {
+            showUsage("Missing option(s) for cmp-ecdsa-gen: "+missingSuboptions);
+            System.exit(1);
+        }
+
+        if (_args.length < CPM_MANDATORY_ECDSA_OPTIONS.length * 2) {
+            showUsage("Impossible use of commands.");
+            System.exit(1);
+        }
+
+        HashMap<String, String> fileOut = new HashMap<>(); String curveName = null;
+        fileOut.put("priv", args.get(args.indexOf("-privout") + 1));
+        if (args.contains("-pubout")) {
+            fileOut.put("pub", args.get(args.indexOf("-pubout") + 1));
+        }
+        if (args.contains("-curve")) {
+            curveName = args.get(args.indexOf("-curve") + 1);
+        }
+
+        // Select which method to run.
+        int result;
+        if (curveName == null) {
+            result = ECDSA.generateECDSAKey(fileOut);
+        } else {
+            result = ECDSA.generateECDSAKey(fileOut, curveName);
+        }
+
+        return result;
+    }
+
+    private static byte[] base64URLDecode(String encoded) {
+        org.apache.commons.codec.binary.Base64 base64 = new org.apache.commons.codec.binary.Base64();
+        return base64.decode(encoded.getBytes());
+
+//        System.out.println(encoded.length());
+//
+//        Base64.Decoder decoder = Base64.getMimeDecoder();
+//        return decoder.decode(encoded);
+//        return Base64.getUrlDecoder().decode(encoded.getBytes());
     }
 
     private static void showUsage(String message) {

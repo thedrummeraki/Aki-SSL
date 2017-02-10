@@ -26,7 +26,7 @@ public final class FileWriter {
                 fos.close();
                 return true;
             } catch (IOException e) {
-                Logger.error("FileWriter", e.getMessage());
+                Logger.error("MyFileWriter", e.getMessage());
                 e.printStackTrace();
             }
             return false;
@@ -49,14 +49,28 @@ public final class FileWriter {
                 fos.close();
                 return true;
             } catch (IOException e) {
-                Logger.error("FileWriter", e.getMessage());
+                Logger.error("MyFileWriter", e.getMessage());
                 e.printStackTrace();
             }
             return false;
         }
-        Logger.error("FileWriter", path == null && line == null ? "Path and Line are null." :
+        Logger.error("MyFileWriter", path == null && line == null ? "Path and Line are null." :
                 (path == null ? "Path is null." : "Line is null"));
         return false;
+    }
+
+    public static synchronized boolean safeByteArrayToFile(String path, byte[] array) {
+        if (path == null) return false;
+
+        try  {
+            FileOutputStream fos = new FileOutputStream(path);
+            fos.write(array);
+            fos.close();
+            return true;
+        } catch (IOException e) {
+            e.printStackTrace();
+            return false;
+        }
     }
 
     public static synchronized boolean write(String line, String path, boolean append) {

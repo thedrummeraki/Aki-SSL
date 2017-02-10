@@ -9,7 +9,7 @@ import org.bouncycastle.util.Strings;
 /**
  * Password hashing scheme BCrypt,
  * designed by Niels Provos and David Mazières, using the
- * String format and the Base64 encoding
+ * String format and the MyBase64 encoding
  * of the reference implementation on OpenBSD
  */
 public class OpenBSDBCrypt

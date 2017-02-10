@@ -58,7 +58,7 @@ public final class BashReader {
         try {
             return readAndThrow(subCommands);
         } catch (Exception e) {
-            Logger.error(e.getClass(), e.getMessage(), false);
+            MyLogger.error(e.getClass(), e.getMessage(), false);
             return null;
         }
     }
@@ -71,7 +71,7 @@ public final class BashReader {
         try {
             return readAndThrow(command);
         } catch (Exception e) {
-            Logger.error(e.getClass(), e.getMessage(), true);
+            MyLogger.error(e.getClass(), e.getMessage(), true);
             return null;
         }
     }
@@ -157,7 +157,7 @@ public final class BashReader {
         try {
             return executeAndThrow(command, saveToLog);
         } catch (Exception e) {
-            Logger.error(BashReader.class, e.getMessage(), saveToLog);
+            MyLogger.error(BashReader.class, e.getMessage(), saveToLog);
             return null;
         }
     }
@@ -185,13 +185,13 @@ public final class BashReader {
         ArrayList<String> output = new ArrayList<String>();
 
         if (log)
-            Logger.info(command, "Output", saveToLog);
+            MyLogger.info(command, "Output", saveToLog);
         while ((line = br.readLine()) != null) {
             if (log)
-                Logger.info("", line, saveToLog);
+                MyLogger.info("", line, saveToLog);
             output.add(line);
         }
-        Logger.info("BashReader", "Command executed: "+command+ (output.isEmpty() ? ". No output." : ".")+" Exited with code ("+code+").");
+        MyLogger.info("BashReader", "Command executed: "+command+ (output.isEmpty() ? ". No output." : ".")+" Exited with code ("+code+").");
         return output;
     }
 

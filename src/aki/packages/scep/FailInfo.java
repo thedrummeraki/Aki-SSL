@@ -85,17 +85,7 @@ public class FailInfo implements Serializable {
     }
 
     public boolean equals(Object o) {
-        if (this == o) {
-            return true;
-        }
-        if (!(o instanceof FailInfo)) {
-            return false;
-        }
-        final FailInfo scepResponseStatus = (FailInfo) o;
-        if (value != scepResponseStatus.value) {
-            return false;
-        }
-        return true;
+        return (this == o || o instanceof FailInfo) && value == ((FailInfo) o).value;
     }
 
     public int hashCode() {

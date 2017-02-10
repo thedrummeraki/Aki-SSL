@@ -1,11 +1,11 @@
 package aki.packages.scep;
 
-import aki.packages.pkcs7.PKCS7Exception;
+import aki.packages.pkcs7.MyPKCS7Exception;
 
 /**
  * Created by aakintol on 30/06/16.
  */
-public class SCEPException extends PKCS7Exception {
+public class SCEPException extends MyPKCS7Exception {
 
     public SCEPException() {
     }

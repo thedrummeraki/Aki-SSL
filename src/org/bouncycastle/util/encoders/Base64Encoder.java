@@ -4,7 +4,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 
 /**
- * A streaming Base64 encoder.
+ * A streaming MyBase64 encoder.
  */
 public class Base64Encoder
     implements Encoder

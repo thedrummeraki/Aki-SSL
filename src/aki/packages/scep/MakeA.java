@@ -35,6 +35,7 @@ public final class MakeA {
             extensionsGenerator.addExtension(Extension.basicConstraints, basicCon, new BasicConstraints(true));
             extensionsGenerator.addExtension(Extension.keyUsage, keyUsage, new KeyUsage(KeyUsage.keyCertSign | KeyUsage.cRLSign | KeyUsage.digitalSignature));
             extensionsGenerator.addExtension(Extension.subjectKeyIdentifier, false, ski);
+            extensionsGenerator.addExtension(Extension.subjectAlternativeName, false, "IP:192.168.1.1,otherName:1.3.6.1.5.2.2;SEQUENCE:princ_name".getBytes());
             extensionsGenerator.addExtension(Extension.authorityKeyIdentifier, false,
                     ("3045801494d9981bfd79806b2ca2e31d072b0ed699676f78a12aa4283026310b30090603" +
                             "55040a13027161311730150603550403130e477579616e615141434132303131820101")
